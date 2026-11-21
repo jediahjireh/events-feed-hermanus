@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls:*)",
+      "Bash(git add:*)",
+      "Bash(git ls-tree:*)",
+      "Bash(git ls-files:*)",
+      "Bash(git mv:*)",
+      "Bash(npm test:*)",
+      "Bash(npm run lint:*)",
+      "Bash(npm run build:*)",
+      "Bash(npm audit:*)",
+      "Bash(npx drizzle-kit:*)",
+      "Bash(npx tsx:*)"
+    ]
+  }
+}
