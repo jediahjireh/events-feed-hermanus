@@ -716,6 +716,54 @@ const OPENAPI_SPEC = {
         },
       },
     },
+    "/review": {
+      post: {
+        operationId: "triggerReview",
+        summary: "Trigger a review pass on existing events",
+        description:
+          "Re-fetches source URLs, asks Claude Haiku to verify each event is still listed, and updates confidence/status. Returns a review report.",
+        requestBody: {
+          required: false,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  scope: {
+                    type: "string",
+                    enum: ["upcoming", "low-confidence", "all"],
+                    default: "upcoming",
+                    description:
+                      "upcoming = events in next 30 days + recurring/seasonal; low-confidence = confidence <= 0.7; all = all active events",
+                  },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": {
+            description: "Review report",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    data: { $ref: "#/components/schemas/ReviewReport" },
+                    meta: { type: "object" },
+                    errors: {
+                      type: "array",
+                      items: { $ref: "#/components/schemas/ApiError" },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          "422": { description: "Validation error" },
+        },
+      },
+    },
     "/health": {
       get: {
         operationId: "healthCheck",
@@ -967,6 +1015,27 @@ const OPENAPI_SPEC = {
             },
           },
           timestamp: { type: "string", format: "date-time" },
+        },
+      },
+      ReviewReport: {
+        type: "object",
+        properties: {
+          events_checked: { type: "integer" },
+          events_confirmed: {
+            type: "integer",
+            description: "Events still found at source URL",
+          },
+          events_updated: {
+            type: "integer",
+            description: "Events with changed details or cancelled status",
+          },
+          events_stale: {
+            type: "integer",
+            description: "Events no longer found at source URL (confidence lowered)",
+          },
+          tokens_used: { type: "integer" },
+          cost_usd: { type: "number" },
+          errors: { type: "array", items: { type: "string" } },
         },
       },
       PaginationMeta: PaginationMeta,

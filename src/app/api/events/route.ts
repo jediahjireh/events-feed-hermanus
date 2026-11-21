@@ -7,6 +7,7 @@ import { EventQuerySchema, apiPaginated, apiError, apiSuccess } from "@/types/ap
 import { CreateEventSchema } from "@/types/event";
 import { overlaps, nextOccurrenceInRange, parseDate } from "@/lib/temporal";
 import { slugify } from "@/lib/slug";
+import { scoreRelevance } from "@/agents/relevance";
 
 /**
  * GET /api/events — the primary query endpoint.
@@ -76,7 +77,17 @@ export async function GET(request: NextRequest) {
 
     // Sort
     if (query.sort === "relevance") {
-      filtered.sort((a, b) => b.relevance_score - a.relevance_score);
+      if (query.suitable_for) {
+        // Dynamic relevance scoring via the relevance agent
+        const profiles = query.suitable_for.split(",").map((s) => s.trim());
+        filtered.sort((a, b) => {
+          const scoreA = scoreRelevance(a.categories ?? [], a.suitable_for ?? [], profiles);
+          const scoreB = scoreRelevance(b.categories ?? [], b.suitable_for ?? [], profiles);
+          return scoreB - scoreA;
+        });
+      } else {
+        filtered.sort((a, b) => b.relevance_score - a.relevance_score);
+      }
     } else if (query.sort === "confidence") {
       filtered.sort((a, b) => b.confidence - a.confidence);
     } else if (query.sort === "date") {

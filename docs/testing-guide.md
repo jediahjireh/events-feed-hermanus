@@ -33,13 +33,16 @@ Both environments connect to the same Neon database — writes from either URL a
 
 The API is designed to be agent-friendly. To test with a normal Claude or Codex session, paste one of the prompts below.
 
-### Production test prompt (read-only — no setup required)
+### Production test prompt
 
 ```text
 You are testing a live event feed API for Hermanus, South Africa.
 The production API is at https://events-feed-hermanus.vercel.app.
+Both environments share the same Neon database — writes affect production data.
 
 Run these checks and report results:
+
+--- API Verification (read-only) ---
 
 1. Health check:
    curl -s https://events-feed-hermanus.vercel.app/api/health | jq '.data.status'
@@ -83,16 +86,42 @@ Run these checks and report results:
     curl -s https://events-feed-hermanus.vercel.app/api/sources | jq '.data[].id'
     → Should list 7 sources: google-events, facebook, eventbrite, tripadvisor, quicket, hermanus-co-za, manual
 
+--- Agent Testing (triggers real Apify runs + Claude calls, ~$0.06 total) ---
+
+11. Ingest agent — trigger ingestion for one source:
+    curl -s -X POST https://events-feed-hermanus.vercel.app/api/ingest \
+      -H 'Content-Type: application/json' \
+      -d '{"source_id": "quicket"}'
+    → Should return 202 with { data: { status: "running" } }
+    Wait 30-60 seconds, then check the run:
+    curl -s 'https://events-feed-hermanus.vercel.app/api/ingest/runs?source_id=quicket' | jq '.data[0] | {status, events_found, events_created}'
+    → status should be "completed", events_found >= 0
+
+12. Review agent — verify existing events against their sources:
+    curl -s -X POST https://events-feed-hermanus.vercel.app/api/review \
+      -H 'Content-Type: application/json' \
+      -d '{"scope": "all"}'
+    → Should return 200 with { data: { events_checked, events_confirmed, events_updated, events_stale, tokens_used, cost_usd } }
+    → events_checked should be >= 1 (only events with source URLs are reviewed)
+
+13. Relevance agent — verify dynamic relevance scoring:
+    curl -s 'https://events-feed-hermanus.vercel.app/api/events?from=2027-09-14&to=2027-09-21&suitable_for=luxury&sort=relevance' | jq '.data[].title'
+    → Events should be sorted by relevance to "luxury" travellers
+    → "Wine Tasting at Creation Wines" and "Southern Right Whale Watching Season" should rank higher than "Hermanus Country Market"
+
 Report: for each check, state PASS or FAIL with the actual result.
 ```
 
-### Local dev test prompt (full read/write — requires local setup)
+### Local dev test prompt (requires local setup)
 
 ```text
 You are testing a local event feed API for Hermanus, South Africa.
 The dev server is running at http://localhost:3000.
+Both environments share the same Neon database — writes affect production data.
 
 Run these checks and report results:
+
+--- API Verification ---
 
 1. Health check:
    curl -s http://localhost:3000/api/health | jq '.data.status'
@@ -136,6 +165,29 @@ Run these checks and report results:
     curl -s http://localhost:3000/api/sources | jq '.data[].id'
     → Should list 7 sources: google-events, facebook, eventbrite, tripadvisor, quicket, hermanus-co-za, manual
 
+--- Agent Testing (triggers real Apify runs + Claude calls, ~$0.06 total) ---
+
+11. Ingest agent — trigger ingestion for one source:
+    curl -s -X POST http://localhost:3000/api/ingest \
+      -H 'Content-Type: application/json' \
+      -d '{"source_id": "quicket"}'
+    → Should return 202 with { data: { status: "running" } }
+    Wait 30-60 seconds, then check the run:
+    curl -s 'http://localhost:3000/api/ingest/runs?source_id=quicket' | jq '.data[0] | {status, events_found, events_created}'
+    → status should be "completed", events_found >= 0
+
+12. Review agent — verify existing events against their sources:
+    curl -s -X POST http://localhost:3000/api/review \
+      -H 'Content-Type: application/json' \
+      -d '{"scope": "all"}'
+    → Should return 200 with { data: { events_checked, events_confirmed, events_updated, events_stale, tokens_used, cost_usd } }
+    → events_checked should be >= 1 (only events with source URLs are reviewed)
+
+13. Relevance agent — verify dynamic relevance scoring:
+    curl -s 'http://localhost:3000/api/events?from=2027-09-14&to=2027-09-21&suitable_for=luxury&sort=relevance' | jq '.data[].title'
+    → Events should be sorted by relevance to "luxury" travellers
+    → "Wine Tasting at Creation Wines" and "Southern Right Whale Watching Season" should rank higher than "Hermanus Country Market"
+
 Report: for each check, state PASS or FAIL with the actual result.
 ```
 
@@ -152,6 +204,7 @@ curl -sf "$BASE/api/events?from=2027-06-01&to=2027-06-30&suitable_for=families" 
 curl -sf "$BASE/api/events?status=cancelled" | jq -e '[.data[].title] | any(contains("Cancelled"))' && echo "5. Cancelled: PASS" || echo "5. Cancelled: FAIL"
 curl -sf "$BASE/api/schema" | jq -e '.openapi == "3.1.0"' && echo "6. Schema: PASS" || echo "6. Schema: FAIL"
 curl -sf "$BASE/api/sources" | jq -e '[.data[].id] | length == 7' && echo "7. Sources: PASS" || echo "7. Sources: FAIL"
+curl -sf -X POST "$BASE/api/review" -H 'Content-Type: application/json' -d '{"scope":"upcoming"}' | jq -e '.data | has("events_checked")' && echo "8. Review: PASS" || echo "8. Review: FAIL"
 ```
 
 **Local dev** (requires `pnpm dev` running):
@@ -165,6 +218,7 @@ curl -sf "$BASE/api/events?from=2027-06-01&to=2027-06-30&suitable_for=families" 
 curl -sf "$BASE/api/events?status=cancelled" | jq -e '[.data[].title] | any(contains("Cancelled"))' && echo "5. Cancelled: PASS" || echo "5. Cancelled: FAIL"
 curl -sf "$BASE/api/schema" | jq -e '.openapi == "3.1.0"' && echo "6. Schema: PASS" || echo "6. Schema: FAIL"
 curl -sf "$BASE/api/sources" | jq -e '[.data[].id] | length == 7' && echo "7. Sources: PASS" || echo "7. Sources: FAIL"
+curl -sf -X POST "$BASE/api/review" -H 'Content-Type: application/json' -d '{"scope":"upcoming"}' | jq -e '.data | has("events_checked")' && echo "8. Review: PASS" || echo "8. Review: FAIL"
 ```
 
 ---
@@ -258,7 +312,7 @@ Done.
 pnpm test
 ```
 
-Expected: **86 tests passing** across 3 test files.
+Expected: **125 tests passing** across 6 test files.
 
 ### Test files
 
@@ -267,6 +321,9 @@ Expected: **86 tests passing** across 3 test files.
 | `tests/temporal.test.ts` | 34 | Overlap logic for all 4 temporal types (point, range, recurring, seasonal), `nextOccurrenceInRange`, edge cases (wrap-around months, exception dates) |
 | `tests/dedup.test.ts` | 16 | Fuzzy title matching, date proximity, venue matching, dedup threshold handling, non-duplicate detection |
 | `tests/hand-worked-cases.test.ts` | 36 | End-to-end acceptance tests from DESIGN.md Cases 1–4 — simulates the full API query pipeline (temporal overlap + category + suitable_for + confidence filters) against seed data |
+| `tests/relevance.test.ts` | 21 | Relevance agent scoring: category-profile matrix, multiple categories, suitable_for boost, edge cases, seed data scenarios |
+| `tests/ingest.test.ts` | 8 | Ingest agent pipeline: extraction of all 4 temporal types, markdown-wrapped JSON handling, invalid JSON errors, multi-event accumulation, cost calculation (mocked Anthropic + DB) |
+| `tests/review.test.ts` | 10 | Review agent verification: event confirmation, cancellation detection, 404 handling, fetch errors, detail changes, links.source_url fallback, cost calculation (mocked Anthropic + DB + fetch) |
 
 ### Run a specific test file
 
@@ -274,6 +331,9 @@ Expected: **86 tests passing** across 3 test files.
 pnpm vitest run tests/temporal.test.ts
 pnpm vitest run tests/dedup.test.ts
 pnpm vitest run tests/hand-worked-cases.test.ts
+pnpm vitest run tests/relevance.test.ts
+pnpm vitest run tests/ingest.test.ts
+pnpm vitest run tests/review.test.ts
 ```
 
 ### Watch mode (re-runs on file changes)
@@ -608,6 +668,60 @@ curl -s "$BASE/api/ingest/runs?source_id=google-events" | jq .
 ```
 
 Returns paginated list of ingestion runs with stats (events found/created/updated/skipped, tokens used, cost).
+
+### POST /api/review — Trigger event review
+
+Re-verifies existing events against their source URLs using the review agent (Claude Haiku).
+
+```bash
+# Review upcoming events (default scope)
+curl -s -X POST $BASE/api/review \
+  -H 'Content-Type: application/json' \
+  -d '{"scope": "upcoming"}' | jq .
+
+# Review low-confidence events only
+curl -s -X POST $BASE/api/review \
+  -H 'Content-Type: application/json' \
+  -d '{"scope": "low-confidence"}' | jq .
+
+# Review all events
+curl -s -X POST $BASE/api/review \
+  -H 'Content-Type: application/json' \
+  -d '{"scope": "all"}' | jq .
+```
+
+Returns 200 with a review report:
+
+```json
+{
+  "data": {
+    "events_checked": 5,
+    "events_confirmed": 3,
+    "events_updated": 1,
+    "events_stale": 1,
+    "tokens_used": 2000,
+    "cost_usd": 0.0012,
+    "errors": []
+  },
+  "meta": {},
+  "errors": []
+}
+```
+
+- `events_confirmed`: Still found at source, details unchanged
+- `events_updated`: Found but details changed (e.g. new dates) or cancelled
+- `events_stale`: Source URL returned 404 or event no longer listed — confidence lowered
+- Only events with a `source_url` (or `links.source_url`) are reviewed; others are skipped
+
+**Validation error:**
+
+```bash
+curl -s -X POST $BASE/api/review \
+  -H 'Content-Type: application/json' \
+  -d '{"scope": "invalid"}' | jq .
+```
+
+Returns 422 with `VALIDATION_ERROR`.
 
 ### GET /api/schema — OpenAPI spec
 
@@ -1009,7 +1123,7 @@ If a hand-worked case fails, the test output shows exactly which events were ret
 pnpm build
 ```
 
-Must complete with 0 errors and show all 9 routes. TypeScript errors will be caught here.
+Must complete with 0 errors and show all 10 routes. TypeScript errors will be caught here.
 
 ### "Model not found" or Anthropic API errors
 
@@ -1022,10 +1136,10 @@ Verify your `ANTHROPIC_API_KEY` is valid and has credits. The model used is `cla
 ```bash
 BASE=http://localhost:3000
 
-# 1. All 86 tests pass
+# 1. All 125 tests pass
 pnpm test
 
-# 2. Build is clean (9 routes, 0 errors)
+# 2. Build is clean (10 routes, 0 errors)
 pnpm build
 
 # 3. Health check returns "healthy"
@@ -1064,7 +1178,7 @@ curl -s $BASE/api/sources | jq '[.data[].id] | length'
 
 ### Extended checklist (live integration)
 
-Run these if you've changed source adapters or the ingest pipeline. Requires `APIFY_API_KEY` and costs ~$0.02 per source.
+Run these if you've changed source adapters, the ingest pipeline, or the review agent. Requires `APIFY_API_KEY` and `ANTHROPIC_API_KEY`. Costs ~$0.02 per source for ingest, ~$0.001 per event for review.
 
 ```bash
 BASE=https://events-feed-hermanus.vercel.app  # or http://localhost:3000
@@ -1085,4 +1199,12 @@ curl -s "$BASE/api/ingest/runs?source_id=eventbrite" | jq '.data[0] | {status, e
 
 # 9. Ingested events appear in the API
 curl -s "$BASE/api/events?per_page=50" | jq '.meta.total_count'
+
+# 10. Review agent verifies events against source URLs
+curl -s -X POST $BASE/api/review \
+  -H 'Content-Type: application/json' \
+  -d '{"scope": "all"}' | jq '.data | {events_checked, events_confirmed, events_stale}'
+
+# 11. Relevance scoring works with suitable_for + sort=relevance
+curl -s "$BASE/api/events?from=2027-09-14&to=2027-09-21&suitable_for=luxury&sort=relevance" | jq '.data[].title'
 ```
