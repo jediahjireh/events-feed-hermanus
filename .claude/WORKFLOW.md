@@ -41,7 +41,7 @@ Skills for the event feed's unique workflows.
 
 ### Running an Ingestion
 
-1. Run `/project:ingest serpapi` (or `quicket`, `all`, `dry-run`)
+1. Run `/project:ingest google-events` (or `facebook`, `eventbrite`, `tripadvisor`, `quicket`, `all`, `dry-run`)
 2. Check the run report for anomalies
 3. Run `/project:review upcoming` to verify new events
 

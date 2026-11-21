@@ -21,7 +21,7 @@ Implement a feature, fix, or enhancement from a spec, requirement, or inline des
 1. **Understand the request**: Parse the feature brief or inline description. Identify what's being asked and why.
 2. **Research the codebase**: Search for all existing code related to the feature — services, models, routes, tests, and types. Understand the current architecture before proposing changes.
 3. **Reference project docs**: Read DESIGN.md for the relevant domain section. Check if the feature touches temporal logic, deduplication, API endpoints, or agent pipelines.
-4. **Web search if needed**: Look up API docs (SerpAPI, Quicket, Drizzle, Neon) or package documentation when implementing unfamiliar APIs.
+4. **Web search if needed**: Look up API docs (Apify actors, Drizzle, Neon) or package documentation when implementing unfamiliar APIs.
 5. **Draft the implementation plan**: Write a clear plan covering:
    - Files to create/modify (with rationale for each)
    - Approach and architecture decisions
@@ -46,8 +46,8 @@ Work through the plan in `tasks/todo.md`, marking items complete as you go.
 
 After implementation:
 
-1. Run `npm run lint` and fix any issues.
-2. Run `npm test` and ensure all tests pass.
+1. Run `pnpm lint` and fix any issues.
+2. Run `pnpm test` and ensure all tests pass.
 3. Grep for unguarded debug statements, orphaned references, and unresolved TODOs.
 4. Verify everything works — no placeholders, no debug-only code leaking to production.
 5. Present a summary of all changes made, grouped by file, in plain English.

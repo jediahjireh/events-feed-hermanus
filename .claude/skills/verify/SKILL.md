@@ -51,15 +51,15 @@ Verify the project-specific rules were followed:
 
 ### 4. Domain-Specific Checks
 
-- **Temporal logic**: If temporal code changed, run `npm test -- temporal` and verify all four types work.
+- **Temporal logic**: If temporal code changed, run `pnpm test -- temporal` and verify all four types work.
 - **Dedup logic**: If dedup changed, run the dedup test suite.
 - **API endpoints**: If endpoints changed, verify against DESIGN.md API spec.
 - **Agent extraction**: If extraction prompts changed, verify Zod validation still passes.
 
 ## Automated Checks
 
-- Run `npm run lint` — must pass clean
-- Run `npm test` — all tests must pass
+- Run `pnpm lint` — must pass clean
+- Run `pnpm test` — all tests must pass
 - Grep for orphaned references to removed methods/classes
 - Grep for unguarded debug statements in modified files
 - Grep for `// TODO` that should have been implemented

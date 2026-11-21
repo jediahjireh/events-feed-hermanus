@@ -6,6 +6,8 @@ References to "recent projects" and "engineering templates" refer to other codeb
 
 ---
 
+> **Historical note (Nov 2026):** The prompts and build log below reference SerpAPI as the Google Events data source. After the initial build, SerpAPI was replaced with Apify actors for all event sources: `google-events` (`johnvc/google-events-api---access-google-events-data`), `facebook` (`apify/facebook-events-scraper`), `eventbrite` (`parseforge/eventbrite-scraper`), `tripadvisor` (`maxcopell/tripadvisor`), `quicket` (`gtnetworks/sa-events-listings`), `hermanus-co-za`, and `manual`. `SERPAPI_KEY` was removed; only `APIFY_API_KEY` is needed. The prompts are preserved as-is for process documentation.
+
 ## Phase 1: Research and Context Gathering
 
 ### 1.1 — Read the spec and handbook
@@ -187,75 +189,75 @@ Claude reads CLAUDE.md automatically, picks up the todo, reads each build prompt
 
 ### 4.1 — Scaffold (Prompt 1.1)
 
-> Status: pending
-> Executed: —
-> Notes: —
+> Status: done
+> Executed: 2026-11-21
+> Notes: Next.js 16.4.6, pnpm, Drizzle 0.45.4, Zod 4.6.7, vitest 5.1.1. All npm references across docs/skills updated to pnpm. Build succeeds.
 
 ### 4.2 — Database schema (Prompt 1.2)
 
-> Status: pending
-> Executed: —
-> Notes: —
+> Status: done
+> Executed: 2026-11-21
+> Notes: Drizzle schema (events, event_versions, sources, ingest_runs) + Zod 4 types (TemporalSchema discriminated union, EventSchema, CreateEventSchema, UpdateEventSchema, API helpers). All schemas validated at runtime.
 
 ### 4.3 — Temporal overlap logic (Prompt 2.1)
 
-> Status: pending
-> Executed: —
-> Notes: —
+> Status: done
+> Executed: 2026-11-21
+> Notes: All 4 temporal types implemented (point, range, recurring, seasonal) + multi-date support. 34 tests covering hand-worked cases and edge cases. Tracer bullet: all temporal tests pass.
 
 ### 4.4 — Deduplication (Prompt 2.2)
 
-> Status: pending
-> Executed: —
-> Notes: —
+> Status: done
+> Executed: 2026-11-21
+> Notes: Levenshtein + Dice coefficient (token-level). Handles word reordering across sources. 16 tests including DESIGN.md Case 3 (FynArts cross-source merge). Tracer bullet: all dedup tests pass.
 
 ### 4.5 — Event API endpoints (Prompt 3.1)
 
-> Status: pending
-> Executed: —
-> Notes: —
+> Status: done
+> Executed: 2026-11-21
+> Notes: GET/POST events, GET/PUT/DELETE events/:id, GET events/:id/versions. All routes follow { data, meta, errors } shape. Optimistic concurrency on PUT. Soft delete on DELETE. Build passes clean.
 
 ### 4.6 — Support endpoints (Prompt 3.2)
 
-> Status: pending
-> Executed: —
-> Notes: —
+> Status: done
+> Executed: 2026-11-21
+> Notes: GET /api/sources, POST /api/ingest, GET /api/ingest/runs, GET /api/health (full stats), GET /api/schema (placeholder). 8 total API routes, all build successfully.
 
-### 4.7 — SerpAPI ingest agent (Prompt 4.1)
+### 4.7 — SerpAPI ingest agent (Prompt 4.1) _(later replaced — see historical note)_
 
-> Status: pending
-> Executed: —
-> Notes: —
+> Status: done
+> Executed: 2026-11-21
+> Notes: Originally built with SerpAPI adapter + pagination. Later replaced with 4 Apify actors (Google Events, Facebook, Eventbrite, TripAdvisor) + shared utility. Full ingest pipeline unchanged: Claude Haiku extraction → Zod validation → dedup → create/update with EventVersion. Run report with token/cost tracking.
 
 ### 4.8 — Quicket integration (Prompt 4.2)
 
-> Status: pending
-> Executed: —
-> Notes: —
+> Status: done
+> Executed: 2026-11-21
+> Notes: Apify SA Events Scraper adapter. Fetches latest dataset or triggers new run. Filters for Hermanus/Western Cape events.
 
 ### 4.9 — Claude-powered scraper (Prompt 4.3)
 
-> Status: pending
-> Executed: —
-> Notes: —
+> Status: done
+> Executed: 2026-11-21
+> Notes: Generic scraper: fetch URL → Claude Haiku extraction → structured events. 100K char truncation. Manual submission handler also added.
 
 ### 4.10 — Review agent (Prompt 4.4)
 
-> Status: pending
-> Executed: —
-> Notes: —
+> Status: done
+> Executed: 2026-11-21
+> Notes: Review agent with 3 scopes (upcoming/low-confidence/all). Re-fetches source URLs, verifies via Claude Haiku, handles source-gone/cancelled/changed scenarios. Relevance agent (rule-based) also added.
 
 ### 4.11 — Seed data + hand-worked case tests (Prompts 5.1 + 5.2)
 
-> Status: pending
-> Executed: —
-> Notes: —
+> Status: done
+> Executed: 2026-11-21
+> Notes: Seed script populates 4 sources + 7 events (all 4 temporal types). Test factories in tests/helpers/factories.ts. Hand-worked case tests (36 tests) verify Cases 1-4 from DESIGN.md: temporal overlap, query filtering, dedup, cancelled event handling. Tracer bullet: 86/86 tests pass.
 
 ### 4.12 — OpenAPI spec + health check (Prompts 6.1 + 6.2)
 
-> Status: pending
-> Executed: —
-> Notes: —
+> Status: done
+> Executed: 2026-11-21
+> Notes: Full OpenAPI 3.1 spec at GET /api/schema covering all 9 endpoints with complete component schemas (Event, Temporal discriminated union, Location, Recurrence, Links, Source, IngestRun, EventVersion, HealthStatus). Health check already implemented in Phase 3 — verified against Prompt 6.2 requirements.
 
 ---
 

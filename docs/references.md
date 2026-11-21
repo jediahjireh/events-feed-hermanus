@@ -46,24 +46,27 @@ Research gathered during the design phase. Sources verified against live web whe
 
 ## Hermanus Event Sources
 
-| Source | URL | Method | Expected yield |
-|---|---|---|---|
-| SerpAPI (Google Events) | [serpapi.com/events-results](https://serpapi.com/events-results) | REST API | Medium-high |
-| Quicket (SA ticketing) | [quicket.co.za](https://www.quicket.co.za/) | No public API (Nov 2026) | Medium |
-| Apify Quicket Scraper | [apify.com/gtnetworks/sa-events-listings](https://apify.com/gtnetworks/sa-events-listings/api) | Apify actor (primary Quicket data method) | Medium |
-| hermanus.co.za | hermanus.co.za | Scrape + Claude | Medium |
-| ShowMe Hermanus | showme.co.za/hermanus/ | Scrape + Claude | Medium |
-| FynArts Festival | fynarts.co.za | Scrape (seasonal) | Low but high-value |
-| SA-Venues | sa-venues.com | Scrape | Low-medium |
-| Overberg Info | overberginfo.com | Scrape | Low-medium |
+All Apify-based sources use a single `APIFY_API_KEY`. SerpAPI was replaced with Apify actors in Nov 2026.
 
-### SerpAPI Usage
+| Source | Source ID | URL / Actor | Method | Expected yield |
+|---|---|---|---|---|
+| Google Events (Apify) | `google-events` | [johnvc/google-events-api---access-google-events-data](https://apify.com/johnvc/google-events-api---access-google-events-data) | Apify actor | Medium-high |
+| Facebook Events (Apify) | `facebook` | [apify/facebook-events-scraper](https://apify.com/apify/facebook-events-scraper) | Apify actor | Medium |
+| Eventbrite (Apify) | `eventbrite` | [parseforge/eventbrite-scraper](https://apify.com/parseforge/eventbrite-scraper) | Apify actor | Medium |
+| TripAdvisor (Apify) | `tripadvisor` | [maxcopell/tripadvisor](https://apify.com/maxcopell/tripadvisor) | Apify actor | Low-medium |
+| Quicket (Apify) | `quicket` | [apify.com/gtnetworks/sa-events-listings](https://apify.com/gtnetworks/sa-events-listings/api) | Apify actor | Medium |
+| hermanus.co.za | `hermanus-co-za` | hermanus.co.za | Scrape + Claude | Medium |
+| Manual Submission | `manual` | — | Manual entry | Low but high-quality |
 
-| Tutorial | URL |
-|---|---|
-| Python filter & scrape | [serpapi.com/blog/filter-and-scrape-google-events-with-python](https://serpapi.com/blog/filter-and-scrape-google-events-with-python/) |
-| Node.js scrape | [serpapi.com/blog/web-scraping-google-events-results-with-nodejs](https://serpapi.com/blog/web-scraping-google-events-results-with-nodejs/) |
-| Quick start | [serpapi.com/blog/how-to-scrape-google-events-results](https://serpapi.com/blog/how-to-scrape-google-events-results/) |
+### Apify Actor References
+
+| Actor | URL | Notes |
+|---|---|---|
+| Google Events | [apify.com/johnvc/google-events-api---access-google-events-data](https://apify.com/johnvc/google-events-api---access-google-events-data) | Replaces SerpAPI Google Events API. Outputs structured event data. |
+| Facebook Events Scraper | [apify.com/apify/facebook-events-scraper](https://apify.com/apify/facebook-events-scraper) | Official Apify actor. Scrapes public Facebook event pages. |
+| Eventbrite Scraper | [apify.com/parseforge/eventbrite-scraper](https://apify.com/parseforge/eventbrite-scraper) | Scrapes Eventbrite listings by location. |
+| TripAdvisor | [apify.com/maxcopell/tripadvisor](https://apify.com/maxcopell/tripadvisor) | Scrapes TripAdvisor attractions/events. |
+| SA Events Listings (Quicket) | [apify.com/gtnetworks/sa-events-listings](https://apify.com/gtnetworks/sa-events-listings/api) | Scrapes Quicket SA event listings. |
 
 ---
 

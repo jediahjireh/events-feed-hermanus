@@ -15,13 +15,16 @@ Ingest events from a configured source into the normalised event store.
 ### 1. Identify the source
 
 If a source name is given, load its config from the `sources` table or `src/lib/sources/`.
-If "all", iterate through all active sources in priority order (SerpAPI first, then Quicket, then scrapers).
+If "all", iterate through all active sources in priority order (google-events first, then facebook, eventbrite, tripadvisor, quicket, then scrapers).
 If "dry-run", do everything except write to the database — output what would be created/updated.
 
 ### 2. Fetch raw data
 
-- **SerpAPI**: Call the Google Events API with query `"events in Hermanus South Africa"` and location params. Paginate through all results.
-- **Quicket**: Call `GET /api/events?location=Hermanus` via their REST API. Use the API key from env.
+- **Google Events**: Run the Apify actor `johnvc/google-events-api---access-google-events-data` with query `"events in Hermanus South Africa"`. Fetch the dataset results.
+- **Facebook Events**: Run the Apify actor `apify/facebook-events-scraper` targeting Hermanus event pages.
+- **Eventbrite**: Run the Apify actor `parseforge/eventbrite-scraper` for Hermanus/Western Cape events.
+- **TripAdvisor**: Run the Apify actor `maxcopell/tripadvisor` for Hermanus attractions and events.
+- **Quicket**: Run the Apify actor `gtnetworks/sa-events-listings`. Filter results for Hermanus/Western Cape.
 - **Scrapers**: Fetch the page HTML via `fetch()`, pass to Claude Haiku with extraction prompt.
 
 ### 3. Extract and normalise
@@ -50,7 +53,7 @@ For each extracted event, check existing events for fuzzy matches:
 
 Output a run report:
 ```
-Source: serpapi
+Source: google-events
 Timestamp: 2027-01-15T02:00:00Z
 Events found: 12
 Events created: 4

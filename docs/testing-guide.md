@@ -1,0 +1,969 @@
+# Testing Guide
+
+Complete testing guide for the Hermanus Event Feed API — setup, automated tests, manual API testing with curl, and source adapter verification.
+
+---
+
+## Table of Contents
+
+1. [Testing with Claude / Codex](#testing-with-claude--codex)
+2. [Prerequisites](#prerequisites)
+3. [Environment Setup](#environment-setup)
+4. [Automated Tests](#automated-tests)
+5. [Running the Dev Server](#running-the-dev-server)
+6. [API Endpoint Testing (curl)](#api-endpoint-testing-curl)
+7. [Source Adapter Testing](#source-adapter-testing)
+8. [Ingestion Pipeline Testing](#ingestion-pipeline-testing)
+9. [Response Format Reference](#response-format-reference)
+10. [Hand-Worked Acceptance Cases](#hand-worked-acceptance-cases)
+11. [Troubleshooting](#troubleshooting)
+
+---
+
+## Testing with Claude / Codex
+
+The API is designed to be agent-friendly. To test with a normal Claude or Codex session, paste this prompt after setup:
+
+### Copy-paste test prompt
+
+```text
+You are testing a local event feed API for Hermanus, South Africa.
+The dev server is running at http://localhost:3000.
+
+Run these checks and report results:
+
+1. Health check:
+   curl -s http://localhost:3000/api/health | jq '.data.status'
+   → Should return "healthy"
+
+2. List active events:
+   curl -s 'http://localhost:3000/api/events' | jq '.data[].title'
+   → Should return 5+ events (seed data)
+
+3. Date range query — luxury couple trip, 14-21 Sep 2027:
+   curl -s 'http://localhost:3000/api/events?from=2027-09-14&to=2027-09-21&suitable_for=couples,luxury' | jq '.data[].title'
+   → Must include: "Southern Right Whale Watching Season", "Hermanus Country Market", "Wine Tasting at Creation Wines"
+   → Must NOT include: "Hermanus Whale Festival 2027" (outside date range), "FynArts Festival 2027" (wrong month)
+
+4. Family trip, June 2027:
+   curl -s 'http://localhost:3000/api/events?from=2027-06-01&to=2027-06-30&suitable_for=families' | jq '.data[].title'
+   → Must include: "Southern Right Whale Watching Season", "Hermanus Country Market"
+   → Must NOT include: "FynArts Festival 2027" (not suitable for families)
+
+5. Cancelled events excluded from default query:
+   curl -s 'http://localhost:3000/api/events' | jq '[.data[].title] | map(select(contains("Cancelled"))) | length'
+   → Should return 0
+
+6. Cancelled events appear with status filter:
+   curl -s 'http://localhost:3000/api/events?status=cancelled' | jq '.data[].title'
+   → Should include "Cancelled Beach Concert 2027"
+
+7. Low-confidence events excluded by default:
+   curl -s 'http://localhost:3000/api/events' | jq '[.data[].title] | map(select(contains("Pop-up"))) | length'
+   → Should return 0
+
+8. Low-confidence events appear with min_confidence=0:
+   curl -s 'http://localhost:3000/api/events?min_confidence=0' | jq '[.data[].title] | map(select(contains("Pop-up"))) | length'
+   → Should return 1
+
+9. OpenAPI spec:
+   curl -s http://localhost:3000/api/schema | jq '.openapi'
+   → Should return "3.1.0"
+
+10. Sources list:
+    curl -s http://localhost:3000/api/sources | jq '.data[].id'
+    → Should list 7 sources: google-events, facebook, eventbrite, tripadvisor, quicket, hermanus-co-za, manual
+
+Report: for each check, state PASS or FAIL with the actual result.
+```
+
+For a quick smoke test (no AI agent needed):
+
+```bash
+# Run all 10 checks in sequence
+curl -sf http://localhost:3000/api/health | jq -e '.data.status == "healthy"' && echo "1. Health: PASS" || echo "1. Health: FAIL"
+curl -sf 'http://localhost:3000/api/events' | jq -e '.meta.total_count >= 5' && echo "2. Events: PASS" || echo "2. Events: FAIL"
+curl -sf 'http://localhost:3000/api/events?from=2027-09-14&to=2027-09-21&suitable_for=couples,luxury' | jq -e '[.data[].title] | length == 3' && echo "3. Case 1: PASS" || echo "3. Case 1: FAIL"
+curl -sf 'http://localhost:3000/api/events?from=2027-06-01&to=2027-06-30&suitable_for=families' | jq -e '[.data[].title] | length == 2' && echo "4. Case 2: PASS" || echo "4. Case 2: FAIL"
+curl -sf 'http://localhost:3000/api/events?status=cancelled' | jq -e '[.data[].title] | any(contains("Cancelled"))' && echo "5. Cancelled: PASS" || echo "5. Cancelled: FAIL"
+curl -sf 'http://localhost:3000/api/schema' | jq -e '.openapi == "3.1.0"' && echo "6. Schema: PASS" || echo "6. Schema: FAIL"
+curl -sf 'http://localhost:3000/api/sources' | jq -e '[.data[].id] | length == 7' && echo "7. Sources: PASS" || echo "7. Sources: FAIL"
+```
+
+---
+
+## Prerequisites
+
+- **Node.js** 18+
+- **pnpm** (package manager)
+- **API keys** (see [Environment Setup](#environment-setup))
+- **Neon PostgreSQL database** (free tier at [neon.tech](https://neon.tech))
+
+---
+
+## Environment Setup
+
+### 1. Install dependencies
+
+```bash
+pnpm install
+```
+
+### 2. Configure environment variables
+
+```bash
+cp .env.example .env.local
+```
+
+Edit `.env.local` with your actual keys:
+
+```env
+# Database (Neon PostgreSQL)
+DATABASE_URL=postgresql://user:password@host/dbname?sslmode=require
+
+# Anthropic (Claude Haiku for extraction/review agents)
+ANTHROPIC_API_KEY=sk-ant-...
+
+# Apify (all event source actors: Google Events, Facebook Events, Eventbrite, TripAdvisor, Quicket)
+APIFY_API_KEY=...
+```
+
+**Where to get each key:**
+
+| Key | Where | Free tier |
+|---|---|---|
+| `DATABASE_URL` | [neon.tech](https://neon.tech) — create a project, copy the connection string | 1 GB storage |
+| `ANTHROPIC_API_KEY` | [console.anthropic.com/settings/keys](https://console.anthropic.com/settings/keys) | Pay-as-you-go (Haiku is ~$0.002/page) |
+| `APIFY_API_KEY` | [console.apify.com/account/integrations](https://console.apify.com/account/integrations) | $5 free credit (covers all Apify actors) |
+
+### 3. Push the database schema
+
+```bash
+pnpm drizzle-kit push
+```
+
+### 4. Seed test data
+
+```bash
+pnpm tsx src/db/seed.ts
+```
+
+Expected output:
+
+```
+Seeding database...
+
+Cleared existing data.
+Inserted 4 sources.
+Inserted 7 events with version records.
+
+Seed data summary:
+  Sources: google-events, facebook, eventbrite, tripadvisor, quicket, hermanus-co-za, manual
+  Events:
+    - Southern Right Whale Watching Season (seasonal, confidence: 0.99, status: active)
+    - Hermanus Country Market (recurring, confidence: 0.95, status: active)
+    - FynArts Festival 2027 (range, confidence: 0.85, status: active)
+    - Hermanus Whale Festival 2027 (range, confidence: 0.8, status: active)
+    - Wine Tasting at Creation Wines (recurring, confidence: 0.7, status: active)
+    - Cancelled Beach Concert 2027 (point, confidence: 0.6, status: cancelled)
+    - Possible Pop-up Dinner at Wine Farm (point, confidence: 0.4, status: active)
+
+Done.
+```
+
+---
+
+## Automated Tests
+
+### Run all tests
+
+```bash
+pnpm test
+```
+
+Expected: **86 tests passing** across 3 test files.
+
+### Test files
+
+| File | Tests | What it covers |
+|---|---|---|
+| `tests/temporal.test.ts` | 34 | Overlap logic for all 4 temporal types (point, range, recurring, seasonal), `nextOccurrenceInRange`, edge cases (wrap-around months, exception dates) |
+| `tests/dedup.test.ts` | 16 | Fuzzy title matching, date proximity, venue matching, dedup threshold handling, non-duplicate detection |
+| `tests/hand-worked-cases.test.ts` | 36 | End-to-end acceptance tests from DESIGN.md Cases 1–4 — simulates the full API query pipeline (temporal overlap + category + suitable_for + confidence filters) against seed data |
+
+### Run a specific test file
+
+```bash
+pnpm vitest run tests/temporal.test.ts
+pnpm vitest run tests/dedup.test.ts
+pnpm vitest run tests/hand-worked-cases.test.ts
+```
+
+### Watch mode (re-runs on file changes)
+
+```bash
+pnpm vitest
+```
+
+---
+
+## Running the Dev Server
+
+```bash
+pnpm dev
+```
+
+The server starts at `http://localhost:3000`. All API endpoints are under `/api/`.
+
+### Verify it's running
+
+```bash
+curl -s http://localhost:3000/api/health | jq .
+```
+
+Expected response (after seeding):
+
+```json
+{
+  "data": {
+    "status": "healthy",
+    "database": { "connected": true },
+    "events": {
+      "total_active": 6,
+      "by_temporal_type": {
+        "point": 1,
+        "range": 2,
+        "recurring": 2,
+        "seasonal": 1
+      },
+      "by_confidence": {
+        "0.0-0.3": 0,
+        "0.3-0.6": 1,
+        "0.6-0.8": 2,
+        "0.8-1.0": 3
+      }
+    },
+    "sources": [
+      { "source_id": "google-events", "source_name": "Google Events (Apify)", "last_completed": null, "events_found": 0 },
+      { "source_id": "facebook", "source_name": "Facebook Events (Apify)", "last_completed": null, "events_found": 0 },
+      { "source_id": "eventbrite", "source_name": "Eventbrite (Apify)", "last_completed": null, "events_found": 0 },
+      { "source_id": "tripadvisor", "source_name": "TripAdvisor (Apify)", "last_completed": null, "events_found": 0 },
+      { "source_id": "quicket", "source_name": "Quicket (Apify)", "last_completed": null, "events_found": 0 },
+      { "source_id": "hermanus-co-za", "source_name": "hermanus.co.za", "last_completed": null, "events_found": 0 },
+      { "source_id": "manual", "source_name": "Manual Submission", "last_completed": null, "events_found": 0 }
+    ],
+    "timestamp": "2026-11-21T..."
+  },
+  "meta": {},
+  "errors": []
+}
+```
+
+---
+
+## API Endpoint Testing (curl)
+
+> All examples assume `http://localhost:3000` and seed data is loaded.
+> Pipe through `jq` for readable JSON: `curl -s <url> | jq .`
+
+### GET /api/events — Query events
+
+**Basic list (all active events with confidence >= 0.6):**
+
+```bash
+curl -s 'http://localhost:3000/api/events' | jq .
+```
+
+Returns 5 active events (the low-confidence pop-up dinner is excluded by the default `min_confidence=0.6`, the cancelled concert is excluded by default `status=active`).
+
+**Date range query — luxury couple trip, 14–21 September 2027:**
+
+```bash
+curl -s 'http://localhost:3000/api/events?from=2027-09-14&to=2027-09-21&suitable_for=couples,luxury' | jq .
+```
+
+Expected results:
+- **Whale watching season** (seasonal: Sep is within Jun–Nov) — matches couples, luxury
+- **Hermanus Country Market** (recurring: Sat 20 Sep) — matches couples
+- **Wine Tasting at Creation Wines** (recurring: Fri 19 Sep) — matches couples, luxury
+
+The **Whale Festival** (Sep 27–28) should NOT appear — it's outside the 14–21 range.
+**FynArts** (June) should NOT appear — wrong month.
+
+**Family trip, full June 2027:**
+
+```bash
+curl -s 'http://localhost:3000/api/events?from=2027-06-01&to=2027-06-30&suitable_for=families' | jq .
+```
+
+Expected results:
+- **Whale watching season** (seasonal: Jun–Nov overlaps June) — matches families
+- **Hermanus Country Market** (recurring: 4 Saturdays in June) — matches families
+
+FynArts does NOT appear because its `suitable_for` is `["couples", "solo", "luxury"]` — no "families".
+
+**Category filter:**
+
+```bash
+curl -s 'http://localhost:3000/api/events?categories=wildlife' | jq .
+```
+
+Returns: Whale watching season, Whale Festival 2027.
+
+**Low confidence threshold (see all events including unverified):**
+
+```bash
+curl -s 'http://localhost:3000/api/events?min_confidence=0' | jq .
+```
+
+Returns all 6 active events (including the pop-up dinner at confidence 0.4).
+
+**Include cancelled events:**
+
+```bash
+curl -s 'http://localhost:3000/api/events?status=cancelled' | jq .
+```
+
+Returns: Cancelled Beach Concert 2027.
+
+**Pagination:**
+
+```bash
+curl -s 'http://localhost:3000/api/events?per_page=2&page=1' | jq .
+curl -s 'http://localhost:3000/api/events?per_page=2&page=2' | jq .
+```
+
+Check `meta.total_count`, `meta.has_more`, `meta.page`.
+
+**Sort options:**
+
+```bash
+# By relevance (default)
+curl -s 'http://localhost:3000/api/events?sort=relevance' | jq '.data[].title'
+
+# By confidence
+curl -s 'http://localhost:3000/api/events?sort=confidence' | jq '.data[].title'
+
+# By date
+curl -s 'http://localhost:3000/api/events?sort=date' | jq '.data[].title'
+```
+
+### GET /api/events/:id — Single event
+
+First, get an event ID from the list:
+
+```bash
+EVENT_ID=$(curl -s 'http://localhost:3000/api/events?per_page=1' | jq -r '.data[0].id')
+echo $EVENT_ID
+```
+
+Then fetch it:
+
+```bash
+curl -s "http://localhost:3000/api/events/$EVENT_ID" | jq .
+```
+
+**Non-existent ID:**
+
+```bash
+curl -s 'http://localhost:3000/api/events/nonexistent' | jq .
+```
+
+Returns 404 with `{ code: "NOT_FOUND", message: "Event 'nonexistent' not found", retryable: false }`.
+
+### POST /api/events — Create an event
+
+```bash
+curl -s -X POST http://localhost:3000/api/events \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "title": "Test Point Event",
+    "location": {
+      "name": "Test Venue",
+      "town": "Hermanus",
+      "region": "Overberg",
+      "province": "Western Cape",
+      "country": "ZA"
+    },
+    "temporal": {
+      "type": "point",
+      "start_date": "2027-12-25",
+      "end_date": null,
+      "start_month": null,
+      "end_month": null,
+      "recurrence": null,
+      "dates": null
+    },
+    "categories": ["family"],
+    "source_id": "manual",
+    "confidence": 0.8,
+    "suitable_for": ["families"]
+  }' | jq .
+```
+
+Returns 201 with the created event. Save the returned `id` for update/delete tests.
+
+**Validation error (missing required field):**
+
+```bash
+curl -s -X POST http://localhost:3000/api/events \
+  -H 'Content-Type: application/json' \
+  -d '{"title": "Missing fields"}' | jq .
+```
+
+Returns 422 with validation errors.
+
+**Non-existent source:**
+
+```bash
+curl -s -X POST http://localhost:3000/api/events \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "title": "Bad source",
+    "location": {"name":"x","town":"Hermanus","region":"Overberg","province":"Western Cape","country":"ZA"},
+    "temporal": {"type":"point","start_date":"2027-01-01","end_date":null,"start_month":null,"end_month":null,"recurrence":null,"dates":null},
+    "source_id": "does-not-exist"
+  }' | jq .
+```
+
+Returns 404 with `SOURCE_NOT_FOUND`.
+
+### PUT /api/events/:id — Update an event
+
+Requires the current `version` for optimistic concurrency:
+
+```bash
+# Get current version
+EVENT_ID="<paste id from create above>"
+VERSION=$(curl -s "http://localhost:3000/api/events/$EVENT_ID" | jq '.data.version')
+
+# Update the title
+curl -s -X PUT "http://localhost:3000/api/events/$EVENT_ID" \
+  -H 'Content-Type: application/json' \
+  -d "{\"version\": $VERSION, \"title\": \"Updated Test Event\"}" | jq .
+```
+
+Returns 200 with the updated event (version incremented).
+
+**Version conflict:**
+
+```bash
+# Use the OLD version (should fail)
+curl -s -X PUT "http://localhost:3000/api/events/$EVENT_ID" \
+  -H 'Content-Type: application/json' \
+  -d "{\"version\": $VERSION, \"title\": \"Stale update\"}" | jq .
+```
+
+Returns 409 with `VERSION_CONFLICT` and suggestion to re-fetch.
+
+### DELETE /api/events/:id — Soft-delete (cancel)
+
+```bash
+curl -s -X DELETE "http://localhost:3000/api/events/$EVENT_ID" | jq .
+```
+
+Returns 200 with the event's status set to `"cancelled"`. The event is still in the database — it just won't appear in default queries.
+
+Verify it no longer appears in default results:
+
+```bash
+curl -s 'http://localhost:3000/api/events' | jq '.data[].title'
+```
+
+But it appears with the cancelled filter:
+
+```bash
+curl -s 'http://localhost:3000/api/events?status=cancelled' | jq '.data[].title'
+```
+
+### GET /api/events/:id/versions — Audit trail
+
+```bash
+curl -s "http://localhost:3000/api/events/$EVENT_ID/versions" | jq .
+```
+
+Returns paginated version history showing each change, who made it, and a full snapshot at that version. After create + update + delete, there should be 3 versions.
+
+### GET /api/sources — List sources
+
+```bash
+curl -s 'http://localhost:3000/api/sources' | jq .
+```
+
+Returns all 7 configured sources with their trust levels and last scrape timestamps.
+
+### POST /api/ingest — Trigger ingestion
+
+```bash
+# Trigger for a single source
+curl -s -X POST http://localhost:3000/api/ingest \
+  -H 'Content-Type: application/json' \
+  -d '{"source_id": "google-events"}' | jq .
+
+# Trigger for all sources
+curl -s -X POST http://localhost:3000/api/ingest \
+  -H 'Content-Type: application/json' \
+  -d '{"source_id": "all"}' | jq .
+```
+
+Returns 202 with an ingest run record (status: "running"). The actual ingestion pipeline runs asynchronously.
+
+### GET /api/ingest/runs — Ingestion history
+
+```bash
+curl -s 'http://localhost:3000/api/ingest/runs' | jq .
+
+# Filter by source
+curl -s 'http://localhost:3000/api/ingest/runs?source_id=google-events' | jq .
+```
+
+Returns paginated list of ingestion runs with stats (events found/created/updated/skipped, tokens used, cost).
+
+### GET /api/schema — OpenAPI spec
+
+```bash
+curl -s 'http://localhost:3000/api/schema' | jq .
+```
+
+Returns the full OpenAPI 3.1 JSON specification. This is what AI agents and tools like Swagger UI read to discover the API.
+
+To view in Swagger UI, paste the URL `http://localhost:3000/api/schema` into [editor.swagger.io](https://editor.swagger.io) or use:
+
+```bash
+# Save locally and open with any OpenAPI viewer
+curl -s 'http://localhost:3000/api/schema' > openapi.json
+```
+
+---
+
+## Source Adapter Testing
+
+Each source adapter can be tested independently. These require `APIFY_API_KEY` in `.env.local`.
+
+> **Cost note:** Each adapter test triggers an Apify actor run (~$0.01–0.02 per run). The first run for each actor takes 30–120 seconds; subsequent runs reuse cached datasets.
+>
+> **Data sparsity:** Hermanus is a small town (~91K population). Event data is significantly sparser than Cape Town or Johannesburg. Some sources return 0 events — this is expected and documented.
+
+### Google Events (Apify)
+
+```bash
+pnpm tsx -e "
+import 'dotenv/config';
+import { fetchGoogleEvents } from './src/lib/sources/google-events';
+async function main() {
+  const events = await fetchGoogleEvents();
+  console.log('Found', events.length, 'events');
+  for (const e of events) {
+    console.log('-', e.title, '|', e.date?.when ?? 'no date');
+  }
+}
+main();
+"
+```
+
+Expected: **0–5 events**. Hermanus is sparse on Google Events (3–5 results vs 20+ for Cape Town). 0 results is a valid outcome. Actor: `johnvc/google-events-api---access-google-events-data`.
+
+### Facebook Events (Apify)
+
+```bash
+pnpm tsx -e "
+import 'dotenv/config';
+import { fetchFacebookEvents } from './src/lib/sources/facebook';
+async function main() {
+  const events = await fetchFacebookEvents();
+  console.log('Found', events.length, 'events');
+  for (const e of events) {
+    console.log('-', e.name, '|', e.utcStartDate ?? e.startTime ?? 'no date', '|', e.address ?? 'no address');
+  }
+}
+main();
+"
+```
+
+Expected: **0–5 events**. Facebook Events data is restricted since 2019. The actor may return `{ error: "no_items" }` for Hermanus — the adapter filters these out and returns an empty array. Actor: `apify/facebook-events-scraper`.
+
+### Eventbrite (Apify)
+
+```bash
+pnpm tsx -e "
+import 'dotenv/config';
+import { fetchEventbriteEvents } from './src/lib/sources/eventbrite';
+async function main() {
+  const events = await fetchEventbriteEvents();
+  console.log('Found', events.length, 'Hermanus-area events');
+  for (const e of events) {
+    const venue = e.venue as Record<string, unknown> | undefined;
+    console.log('-', e.title, '|', e.startDate, '|', venue?.city ?? 'no city');
+  }
+}
+main();
+"
+```
+
+Expected: **0–10 events** after Hermanus filter. The adapter fetches SA events near Hermanus and filters by location (Hermanus, Overstrand, Stanford, Kleinmond, Betty's Bay). Actor: `parseforge/eventbrite-scraper`.
+
+### TripAdvisor (Apify)
+
+```bash
+pnpm tsx -e "
+import 'dotenv/config';
+import { fetchTripAdvisorItems } from './src/lib/sources/tripadvisor';
+async function main() {
+  const items = await fetchTripAdvisorItems();
+  console.log('Found', items.length, 'attractions');
+  for (const item of items) {
+    console.log('-', item.name, '|', item.category, '|', item.rating);
+  }
+}
+main();
+"
+```
+
+Expected: **0–20 attractions** (after filtering out restaurants/hotels). TripAdvisor data is *places/attractions*, not time-bound events — the Claude extraction agent classifies these as "recurring" or "seasonal". Actor: `maxcopell/tripadvisor`.
+
+### Quicket (Apify)
+
+```bash
+pnpm tsx -e "
+import 'dotenv/config';
+import { fetchQuicketEvents } from './src/lib/sources/quicket';
+async function main() {
+  const events = await fetchQuicketEvents();
+  console.log('Found', events.length, 'Hermanus/WC events');
+  for (const e of events) {
+    console.log('-', e.title, '|', e.venueName, '|', e.isFree ? 'Free' : 'Paid');
+  }
+}
+main();
+"
+```
+
+Expected: **1–10 events**. Quicket is SA's primary ticketing platform and consistently returns Hermanus events (concerts, festivals, markets). Actor: `gtnetworks~sa-events-listings`.
+
+> Note: The first run for any actor may trigger a new Apify run if no cached dataset exists. This takes 30–120 seconds.
+
+### Generic scraper (Claude-powered)
+
+```bash
+pnpm tsx -e "
+import 'dotenv/config';
+import { scrapeUrl } from './src/lib/sources/scraper';
+async function main() {
+  const events = await scrapeUrl('https://www.hermanus.co.za/events', 'hermanus-co-za');
+  console.log('Extracted', events.length, 'events');
+  for (const e of events.slice(0, 5)) {
+    console.log('-', e.title);
+  }
+}
+main();
+"
+```
+
+This fetches the page, sends the HTML to Claude Haiku, and extracts structured event data. Costs ~$0.002 per page.
+
+### Adapter results summary (Nov 2026 baseline)
+
+| Source | Actor | Typical results | Notes |
+| --- | --- | --- | --- |
+| Google Events | `johnvc/google-events-api...` | 0–5 | Sparse for Hermanus |
+| Facebook | `apify/facebook-events-scraper` | 0–5 | Restricted since 2019, often empty |
+| Eventbrite | `parseforge/eventbrite-scraper` | 0–10 | Filtered to Hermanus area |
+| TripAdvisor | `maxcopell/tripadvisor` | 0–20 | Attractions, not time-bound events |
+| Quicket | `gtnetworks~sa-events-listings` | 1–10 | Most reliable for Hermanus |
+| hermanus.co.za | *(Claude scraper)* | 2–8 | Local tourism site |
+| manual | *(none)* | N/A | Manual submissions |
+
+---
+
+## Ingestion Pipeline Testing
+
+The full ingest pipeline (fetch -> extract -> deduplicate -> store) can be tested via the API endpoint.
+
+### Run ingestion via API (recommended)
+
+The simplest way to test the full pipeline. Requires the dev server running (`pnpm dev`).
+
+```bash
+# Trigger ingestion for a single source (202 Accepted, runs async)
+curl -s -X POST http://localhost:3000/api/ingest \
+  -H 'Content-Type: application/json' \
+  -d '{"source_id": "quicket"}' | jq .
+
+# Wait 30-60 seconds, then check the run result
+curl -s 'http://localhost:3000/api/ingest/runs?source_id=quicket' | jq '.data[0]'
+```
+
+**Test each source** (recommended order — most reliable first):
+
+```bash
+# 1. Quicket — most reliable, usually 1-10 results
+curl -s -X POST http://localhost:3000/api/ingest \
+  -H 'Content-Type: application/json' \
+  -d '{"source_id": "quicket"}'
+
+# 2. Eventbrite — good structured data, 0-10 results after Hermanus filter
+curl -s -X POST http://localhost:3000/api/ingest \
+  -H 'Content-Type: application/json' \
+  -d '{"source_id": "eventbrite"}'
+
+# 3. Google Events — sparse for Hermanus, often 0 results
+curl -s -X POST http://localhost:3000/api/ingest \
+  -H 'Content-Type: application/json' \
+  -d '{"source_id": "google-events"}'
+
+# 4. Facebook — restricted data, often empty
+curl -s -X POST http://localhost:3000/api/ingest \
+  -H 'Content-Type: application/json' \
+  -d '{"source_id": "facebook"}'
+
+# 5. TripAdvisor — attractions/places, sparse after filtering
+curl -s -X POST http://localhost:3000/api/ingest \
+  -H 'Content-Type: application/json' \
+  -d '{"source_id": "tripadvisor"}'
+```
+
+**Check all run results:**
+
+```bash
+curl -s 'http://localhost:3000/api/ingest/runs' | jq '.data[] | {source_id, status, events_found, events_created, avg_confidence, cost_usd}'
+```
+
+### Verify ingested events
+
+After running ingestion, check that new events appear:
+
+```bash
+# All events including newly ingested
+curl -s 'http://localhost:3000/api/events?per_page=50' | jq '.data[] | {title, source_id, confidence, temporal_type: .temporal.type}'
+
+# Updated health stats
+curl -s http://localhost:3000/api/health | jq '.data.events'
+```
+
+**What to check in each run:**
+
+- `status` is `"completed"` (not `"failed"`)
+- `events_found` >= 0 (0 is valid for sparse sources)
+- `events_created` > 0 on first run for sources with data
+- `events_skipped` for duplicates (on subsequent runs)
+- `avg_confidence` > 0.5 when events are found
+- `tokens_used` and `cost_usd` are non-zero when events are found
+- `error` is null
+
+### Expected cost per full ingestion cycle
+
+| Source | Apify cost | Haiku cost | Total |
+| --- | --- | --- | --- |
+| Quicket | ~$0.01 | ~$0.001 | ~$0.011 |
+| Eventbrite | ~$0.01 | ~$0.001 | ~$0.011 |
+| Google Events | ~$0.01 | ~$0.001 | ~$0.011 |
+| Facebook | ~$0.01 | ~$0.001 | ~$0.011 |
+| TripAdvisor | ~$0.01 | ~$0.001 | ~$0.011 |
+| **Total (all 5)** | **~$0.05** | **~$0.005** | **~$0.055** |
+
+---
+
+## Response Format Reference
+
+Every API response follows this structure:
+
+### Success (single item)
+
+```json
+{
+  "data": { ... },
+  "meta": {},
+  "errors": []
+}
+```
+
+### Success (paginated list)
+
+```json
+{
+  "data": [ ... ],
+  "meta": {
+    "total_count": 7,
+    "page": 1,
+    "per_page": 20,
+    "has_more": false
+  },
+  "errors": []
+}
+```
+
+### Error
+
+```json
+{
+  "data": null,
+  "meta": {},
+  "errors": [
+    {
+      "code": "NOT_FOUND",
+      "message": "Event 'abc' not found",
+      "suggestion": "Check the event ID",
+      "retryable": false
+    }
+  ]
+}
+```
+
+### Error codes
+
+| Code | HTTP Status | Meaning |
+|---|---|---|
+| `INVALID_QUERY` | 400 | Bad query parameters (Zod validation failure) |
+| `NOT_FOUND` | 404 | Event or source not found |
+| `SOURCE_NOT_FOUND` | 404 | Referenced source doesn't exist |
+| `VALIDATION_ERROR` | 422 | Request body validation failed |
+| `VERSION_CONFLICT` | 409 | Optimistic concurrency — event was modified since you last read it |
+| `HEALTH_CHECK_FAILED` | 503 | Database unreachable |
+| `INTERNAL_ERROR` | 500 | Unexpected server error |
+
+---
+
+## Hand-Worked Acceptance Cases
+
+These are the cases from DESIGN.md, verified by the automated test suite (`tests/hand-worked-cases.test.ts`). Use them to validate the API manually after any changes to temporal logic or query filtering.
+
+### Case 1: Luxury couple trip, 14–21 September 2027
+
+```bash
+curl -s 'http://localhost:3000/api/events?from=2027-09-14&to=2027-09-21&suitable_for=couples,luxury' | jq '.data[].title'
+```
+
+**Should return:**
+- "Southern Right Whale Watching Season" (seasonal: Sep in Jun–Nov)
+- "Hermanus Country Market" (recurring: Sat 20 Sep, has `next_occurrence_in_range`)
+- "Wine Tasting at Creation Wines" (recurring: Fri 19 Sep)
+
+**Should NOT return:**
+- "Hermanus Whale Festival 2027" (Sep 27–28 is outside the 14–21 range)
+- "FynArts Festival 2027" (June, not September)
+- "Cancelled Beach Concert" (status: cancelled)
+- "Possible Pop-up Dinner" (confidence 0.4, below default 0.6 threshold)
+
+### Case 2: Family trip, full month of June 2027
+
+```bash
+curl -s 'http://localhost:3000/api/events?from=2027-06-01&to=2027-06-30&suitable_for=families' | jq '.data[].title'
+```
+
+**Should return:**
+- "Southern Right Whale Watching Season" (seasonal: Jun in Jun–Nov, suitable for families)
+- "Hermanus Country Market" (recurring: 4 Saturdays in June, suitable for families)
+
+**Should NOT return:**
+- "FynArts Festival 2027" — it overlaps June temporally but its `suitable_for` is `["couples", "solo", "luxury"]` (no "families")
+
+### Case 3: Duplicate detection
+
+Tested automatically — when two sources return the same event with different title formatting, the dedup logic merges them and boosts confidence.
+
+### Case 4: Cancelled event handling
+
+```bash
+# Active query excludes cancelled
+curl -s 'http://localhost:3000/api/events' | jq '.data[] | select(.title | contains("Cancelled"))'
+# (empty — correct)
+
+# Cancelled filter includes it
+curl -s 'http://localhost:3000/api/events?status=cancelled' | jq '.data[].title'
+# "Cancelled Beach Concert 2027"
+```
+
+---
+
+## Troubleshooting
+
+### "APIFY_API_KEY environment variable is not set"
+
+Your `.env.local` is missing the key, or the dev server didn't pick it up. Restart with `pnpm dev`. This single key is used for all Apify actors (Google Events, Facebook Events, Eventbrite, TripAdvisor, Quicket).
+
+### "Apify run trigger failed: 404 Not Found"
+
+The actor ID in the URL is malformed. Apify's REST API requires `username~actor-name` (tilde separator), not `username/actor-name` (slash). The shared utility in `src/lib/sources/apify.ts` normalises this automatically — if you see this error, the normalisation is not being applied.
+
+### "Apify dataset fetch failed: 404"
+
+No previous actor run exists. The adapter will automatically trigger a new run. Wait up to 2 minutes.
+
+### "Apify run timed out waiting for dataset"
+
+The actor run took longer than 2 minutes, or the actor returned 0 items. Check the run status at [console.apify.com](https://console.apify.com). For sparse sources (Google Events, Facebook for Hermanus), 0 results is expected — the adapter returns an empty array.
+
+### Database connection errors
+
+- Check `DATABASE_URL` format: `postgresql://user:password@host/dbname?sslmode=require`
+- Neon databases go idle after 5 minutes of inactivity — the first query may take 1–2 seconds to wake up
+- Run `pnpm drizzle-kit push` if you see "relation does not exist" errors
+
+### Tests fail after changing temporal logic
+
+Run the full suite — the hand-worked cases are the most sensitive:
+
+```bash
+pnpm vitest run tests/hand-worked-cases.test.ts
+```
+
+If a hand-worked case fails, the test output shows exactly which events were returned vs expected.
+
+### Build errors
+
+```bash
+pnpm build
+```
+
+Must complete with 0 errors and show all 9 routes. TypeScript errors will be caught here.
+
+### "Model not found" or Anthropic API errors
+
+Verify your `ANTHROPIC_API_KEY` is valid and has credits. The model used is `claude-haiku-5-5` (alias, not a dated version).
+
+## Quick Validation Checklist
+
+Run through this after any significant change:
+
+```bash
+# 1. All 86 tests pass
+pnpm test
+
+# 2. Build is clean (9 routes, 0 errors)
+pnpm build
+
+# 3. Health check returns "healthy"
+curl -s http://localhost:3000/api/health | jq '.data.status'
+
+# 4. Events query returns seed data
+curl -s 'http://localhost:3000/api/events' | jq '.meta.total_count'
+
+# 5. Hand-worked Case 1 returns correct events
+curl -s 'http://localhost:3000/api/events?from=2027-09-14&to=2027-09-21&suitable_for=couples,luxury' | jq '[.data[].title] | sort'
+
+# 6. OpenAPI spec is valid JSON
+curl -s http://localhost:3000/api/schema | jq '.openapi'
+```
+
+### Extended checklist (live integration)
+
+Run these if you've changed source adapters or the ingest pipeline. Requires `APIFY_API_KEY` and costs ~$0.02 per source.
+
+```bash
+# 7. Quicket adapter fetches real events
+curl -s -X POST http://localhost:3000/api/ingest \
+  -H 'Content-Type: application/json' \
+  -d '{"source_id": "quicket"}'
+# Wait 30-60s, then:
+curl -s 'http://localhost:3000/api/ingest/runs?source_id=quicket' | jq '.data[0] | {status, events_found, events_created}'
+
+# 8. Eventbrite adapter fetches real events
+curl -s -X POST http://localhost:3000/api/ingest \
+  -H 'Content-Type: application/json' \
+  -d '{"source_id": "eventbrite"}'
+# Wait 30-60s, then:
+curl -s 'http://localhost:3000/api/ingest/runs?source_id=eventbrite' | jq '.data[0] | {status, events_found, events_created}'
+
+# 9. Ingested events appear in the API
+curl -s 'http://localhost:3000/api/events?per_page=50' | jq '.meta.total_count'
+```

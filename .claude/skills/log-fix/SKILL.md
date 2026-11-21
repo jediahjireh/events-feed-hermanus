@@ -117,7 +117,7 @@ Tell the user the fix was saved, show the file path, title, and tags. Note if a 
 ## Rules
 
 - Keep titles under 80 characters.
-- Tags must be lowercase and hyphenated for multi-word (e.g., `temporal-overlap`, `serpapi-ingest`).
+- Tags must be lowercase and hyphenated for multi-word (e.g., `temporal-overlap`, `apify-ingest`).
 - Always include at least one technology tag and one symptom/category tag.
 - Error messages in the Problem section should be exact — copy from the conversation.
 - The Solution section must explain **why** the fix works, not just what changed.

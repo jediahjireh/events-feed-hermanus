@@ -76,12 +76,14 @@ Score: X/6 per event, average across 5.
 
 ## Priority Sources to Evaluate First
 
-1. SerpAPI (Google Events) — API, highest expected yield
-2. Quicket (via Apify scraper — no public API) — SA ticketing platform
-3. hermanus.co.za — local tourism site
-4. ShowMe Hermanus (showme.co.za/hermanus/) — community directory
-5. fynarts.co.za — annual festival (seasonal scrape)
-6. SA-Venues (sa-venues.com) — national tourism directory
+1. Google Events (Apify actor: `johnvc/google-events-api---access-google-events-data`) — highest expected yield
+2. Facebook Events (Apify actor: `apify/facebook-events-scraper`) — public event pages
+3. Eventbrite (Apify actor: `parseforge/eventbrite-scraper`) — ticketed events
+4. TripAdvisor (Apify actor: `maxcopell/tripadvisor`) — attractions and events
+5. Quicket (Apify actor: `gtnetworks/sa-events-listings`) — SA ticketing platform
+6. hermanus.co.za — local tourism site
+7. ShowMe Hermanus (showme.co.za/hermanus/) — community directory
+8. fynarts.co.za — annual festival (seasonal scrape)
 
 ## Decision Rule
 

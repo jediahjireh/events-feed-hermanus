@@ -14,10 +14,10 @@ Deployment workflow for the event feed. Guides through pre-deploy checks, stagin
 ## Phase 1: Pre-Deploy Checks
 
 1. **Run the security check**: Execute `/project:security-check --quick`.
-2. **Run tests**: `npm test` — ALL tests must pass, especially `hand-worked-cases.test.ts`.
-3. **Run lint/build**: `npm run build` — must complete without errors.
+2. **Run tests**: `pnpm test` — ALL tests must pass, especially `hand-worked-cases.test.ts`.
+3. **Run lint/build**: `pnpm build` — must complete without errors.
 4. **Check migrations**: Are there pending Drizzle migrations? If yes, document the migration plan.
-5. **Check dependencies**: `npm audit` — no critical vulnerabilities.
+5. **Check dependencies**: `pnpm audit` — no critical vulnerabilities.
 6. **Check env vars**: All required vars from `.env.example` must be set in the deployment environment.
 
 ## Phase 2: Staging Deploy (unless `--skip-staging`)
@@ -27,7 +27,7 @@ Deployment workflow for the event feed. Guides through pre-deploy checks, stagin
    - `GET /api/health` returns healthy status
    - `GET /api/events?from=2027-06-01&to=2027-06-30` returns expected seed data
    - `GET /api/events/:id` returns a single event with full detail
-   - `POST /api/ingest` with `source_id: "serpapi"` succeeds (or dry-run)
+   - `POST /api/ingest` with `source_id: "google-events"` succeeds (or dry-run)
 3. **Check logs**: Review Vercel function logs for errors or warnings.
 
 ## Phase 3: Production Deploy

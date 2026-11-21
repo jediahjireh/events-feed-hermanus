@@ -15,7 +15,7 @@ Security analysis based on OWASP Top 10 (Web), adapted for this Next.js + Postgr
 
 - Before any production deployment
 - After adding new API endpoints or authentication changes
-- After integrating new third-party APIs (SerpAPI, Quicket, etc.)
+- After integrating new third-party APIs (Apify actors, Quicket, etc.)
 - Periodically as a hygiene check
 
 ## Modes
@@ -32,7 +32,7 @@ Search across all source directories for:
 | Pattern | Description | Severity |
 |---------|-------------|----------|
 | `sk-ant-*` | Anthropic API keys | CRITICAL |
-| `serpapi_key` / long alphanumeric assigned to API key vars | SerpAPI keys | CRITICAL |
+| `apify_api_*` / long alphanumeric assigned to API key vars | Apify API keys | CRITICAL |
 | `Bearer ` + token literal | Hardcoded auth tokens | CRITICAL |
 | Long alphanumeric strings (32+ chars) assigned to `apiKey`, `secret`, `token`, `password` | Generic secrets | HIGH |
 | `.env` values pasted inline in source | Environment variables in code | HIGH |
@@ -61,7 +61,7 @@ Check for:
 
 ## Step 4: Dependency Audit
 
-Run `npm audit` and flag:
+Run `pnpm audit` and flag:
 - Dependencies with known CVEs
 - Severely outdated packages (2+ major versions behind)
 - Packages with no recent maintenance (last publish > 1 year)

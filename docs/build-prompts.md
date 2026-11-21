@@ -6,6 +6,8 @@ Each prompt references DESIGN.md and CLAUDE.md so Claude works from the plan, no
 
 ---
 
+> **Historical note (Nov 2026):** The original build prompts below reference SerpAPI as the Google Events data source and `SERPAPI_KEY` as an env var. After the initial build, SerpAPI was replaced with Apify actors for all event sources. The current source IDs are: `google-events` (Apify actor: `johnvc/google-events-api---access-google-events-data`), `facebook` (`apify/facebook-events-scraper`), `eventbrite` (`parseforge/eventbrite-scraper`), `tripadvisor` (`maxcopell/tripadvisor`), `quicket` (`gtnetworks/sa-events-listings`), `hermanus-co-za`, and `manual`. Only `APIFY_API_KEY` is needed -- `SERPAPI_KEY` has been removed. The prompts are preserved as-is for build history.
+
 ## Phase 1: Project Setup
 
 ### Prompt 1.1 — Scaffold
