@@ -2,6 +2,15 @@
 
 Complete testing guide for the Hermanus Event Feed API — setup, automated tests, manual API testing with curl, and source adapter verification.
 
+## Environments
+
+| Environment | Base URL | Use for |
+|---|---|---|
+| **Production** | `https://events-feed-hermanus.vercel.app` | Demo, agent integration, verification |
+| **Local dev** | `http://localhost:3000` | Development, debugging, hot reload |
+
+Both environments connect to the same Neon database — writes from either URL affect the same data. All endpoints (GET, POST, PUT, DELETE) work identically from both. Ingest triggers cost ~$0.01/run in Apify compute regardless of which URL you call.
+
 ---
 
 ## Table of Contents
@@ -22,9 +31,62 @@ Complete testing guide for the Hermanus Event Feed API — setup, automated test
 
 ## Testing with Claude / Codex
 
-The API is designed to be agent-friendly. To test with a normal Claude or Codex session, paste this prompt after setup:
+The API is designed to be agent-friendly. To test with a normal Claude or Codex session, paste one of the prompts below.
 
-### Copy-paste test prompt
+### Production test prompt (read-only — no setup required)
+
+```text
+You are testing a live event feed API for Hermanus, South Africa.
+The production API is at https://events-feed-hermanus.vercel.app.
+
+Run these checks and report results:
+
+1. Health check:
+   curl -s https://events-feed-hermanus.vercel.app/api/health | jq '.data.status'
+   → Should return "healthy"
+
+2. List active events:
+   curl -s 'https://events-feed-hermanus.vercel.app/api/events' | jq '.data[].title'
+   → Should return 5+ events (seed data + any ingested events)
+
+3. Date range query — luxury couple trip, 14-21 Sep 2027:
+   curl -s 'https://events-feed-hermanus.vercel.app/api/events?from=2027-09-14&to=2027-09-21&suitable_for=couples,luxury' | jq '.data[].title'
+   → Must include: "Southern Right Whale Watching Season", "Hermanus Country Market", "Wine Tasting at Creation Wines"
+   → Must NOT include: "Hermanus Whale Festival 2027" (outside date range), "FynArts Festival 2027" (wrong month)
+
+4. Family trip, June 2027:
+   curl -s 'https://events-feed-hermanus.vercel.app/api/events?from=2027-06-01&to=2027-06-30&suitable_for=families' | jq '.data[].title'
+   → Must include: "Southern Right Whale Watching Season", "Hermanus Country Market"
+   → Must NOT include: "FynArts Festival 2027" (not suitable for families)
+
+5. Cancelled events excluded from default query:
+   curl -s 'https://events-feed-hermanus.vercel.app/api/events' | jq '[.data[].title] | map(select(contains("Cancelled"))) | length'
+   → Should return 0
+
+6. Cancelled events appear with status filter:
+   curl -s 'https://events-feed-hermanus.vercel.app/api/events?status=cancelled' | jq '.data[].title'
+   → Should include "Cancelled Beach Concert 2027"
+
+7. Low-confidence events excluded by default:
+   curl -s 'https://events-feed-hermanus.vercel.app/api/events' | jq '[.data[].title] | map(select(contains("Pop-up"))) | length'
+   → Should return 0
+
+8. Low-confidence events appear with min_confidence=0:
+   curl -s 'https://events-feed-hermanus.vercel.app/api/events?min_confidence=0' | jq '[.data[].title] | map(select(contains("Pop-up"))) | length'
+   → Should return 1
+
+9. OpenAPI spec:
+   curl -s https://events-feed-hermanus.vercel.app/api/schema | jq '.openapi'
+   → Should return "3.1.0"
+
+10. Sources list:
+    curl -s https://events-feed-hermanus.vercel.app/api/sources | jq '.data[].id'
+    → Should list 7 sources: google-events, facebook, eventbrite, tripadvisor, quicket, hermanus-co-za, manual
+
+Report: for each check, state PASS or FAIL with the actual result.
+```
+
+### Local dev test prompt (full read/write — requires local setup)
 
 ```text
 You are testing a local event feed API for Hermanus, South Africa.
@@ -77,17 +139,32 @@ Run these checks and report results:
 Report: for each check, state PASS or FAIL with the actual result.
 ```
 
-For a quick smoke test (no AI agent needed):
+### Quick smoke test scripts
+
+**Production** (no setup required):
 
 ```bash
-# Run all 10 checks in sequence
-curl -sf http://localhost:3000/api/health | jq -e '.data.status == "healthy"' && echo "1. Health: PASS" || echo "1. Health: FAIL"
-curl -sf 'http://localhost:3000/api/events' | jq -e '.meta.total_count >= 5' && echo "2. Events: PASS" || echo "2. Events: FAIL"
-curl -sf 'http://localhost:3000/api/events?from=2027-09-14&to=2027-09-21&suitable_for=couples,luxury' | jq -e '[.data[].title] | length == 3' && echo "3. Case 1: PASS" || echo "3. Case 1: FAIL"
-curl -sf 'http://localhost:3000/api/events?from=2027-06-01&to=2027-06-30&suitable_for=families' | jq -e '[.data[].title] | length == 2' && echo "4. Case 2: PASS" || echo "4. Case 2: FAIL"
-curl -sf 'http://localhost:3000/api/events?status=cancelled' | jq -e '[.data[].title] | any(contains("Cancelled"))' && echo "5. Cancelled: PASS" || echo "5. Cancelled: FAIL"
-curl -sf 'http://localhost:3000/api/schema' | jq -e '.openapi == "3.1.0"' && echo "6. Schema: PASS" || echo "6. Schema: FAIL"
-curl -sf 'http://localhost:3000/api/sources' | jq -e '[.data[].id] | length == 7' && echo "7. Sources: PASS" || echo "7. Sources: FAIL"
+BASE=https://events-feed-hermanus.vercel.app
+curl -sf $BASE/api/health | jq -e '.data.status == "healthy"' && echo "1. Health: PASS" || echo "1. Health: FAIL"
+curl -sf "$BASE/api/events" | jq -e '.meta.total_count >= 5' && echo "2. Events: PASS" || echo "2. Events: FAIL"
+curl -sf "$BASE/api/events?from=2027-09-14&to=2027-09-21&suitable_for=couples,luxury" | jq -e '[.data[].title] | length == 3' && echo "3. Case 1: PASS" || echo "3. Case 1: FAIL"
+curl -sf "$BASE/api/events?from=2027-06-01&to=2027-06-30&suitable_for=families" | jq -e '[.data[].title] | length == 2' && echo "4. Case 2: PASS" || echo "4. Case 2: FAIL"
+curl -sf "$BASE/api/events?status=cancelled" | jq -e '[.data[].title] | any(contains("Cancelled"))' && echo "5. Cancelled: PASS" || echo "5. Cancelled: FAIL"
+curl -sf "$BASE/api/schema" | jq -e '.openapi == "3.1.0"' && echo "6. Schema: PASS" || echo "6. Schema: FAIL"
+curl -sf "$BASE/api/sources" | jq -e '[.data[].id] | length == 7' && echo "7. Sources: PASS" || echo "7. Sources: FAIL"
+```
+
+**Local dev** (requires `pnpm dev` running):
+
+```bash
+BASE=http://localhost:3000
+curl -sf $BASE/api/health | jq -e '.data.status == "healthy"' && echo "1. Health: PASS" || echo "1. Health: FAIL"
+curl -sf "$BASE/api/events" | jq -e '.meta.total_count >= 5' && echo "2. Events: PASS" || echo "2. Events: FAIL"
+curl -sf "$BASE/api/events?from=2027-09-14&to=2027-09-21&suitable_for=couples,luxury" | jq -e '[.data[].title] | length == 3' && echo "3. Case 1: PASS" || echo "3. Case 1: FAIL"
+curl -sf "$BASE/api/events?from=2027-06-01&to=2027-06-30&suitable_for=families" | jq -e '[.data[].title] | length == 2' && echo "4. Case 2: PASS" || echo "4. Case 2: FAIL"
+curl -sf "$BASE/api/events?status=cancelled" | jq -e '[.data[].title] | any(contains("Cancelled"))' && echo "5. Cancelled: PASS" || echo "5. Cancelled: FAIL"
+curl -sf "$BASE/api/schema" | jq -e '.openapi == "3.1.0"' && echo "6. Schema: PASS" || echo "6. Schema: FAIL"
+curl -sf "$BASE/api/sources" | jq -e '[.data[].id] | length == 7' && echo "7. Sources: PASS" || echo "7. Sources: FAIL"
 ```
 
 ---
@@ -154,7 +231,7 @@ Expected output:
 Seeding database...
 
 Cleared existing data.
-Inserted 4 sources.
+Inserted 7 sources.
 Inserted 7 events with version records.
 
 Seed data summary:
@@ -215,10 +292,12 @@ pnpm dev
 
 The server starts at `http://localhost:3000`. All API endpoints are under `/api/`.
 
+The production deployment is at `https://events-feed-hermanus.vercel.app` — same endpoints, same database.
+
 ### Verify it's running
 
 ```bash
-curl -s http://localhost:3000/api/health | jq .
+curl -s $BASE/api/health | jq .
 ```
 
 Expected response (after seeding):
@@ -239,8 +318,8 @@ Expected response (after seeding):
       "by_confidence": {
         "0.0-0.3": 0,
         "0.3-0.6": 1,
-        "0.6-0.8": 2,
-        "0.8-1.0": 3
+        "0.6-0.8": 1,
+        "0.8-1.0": 4
       }
     },
     "sources": [
@@ -263,23 +342,34 @@ Expected response (after seeding):
 
 ## API Endpoint Testing (curl)
 
-> All examples assume `http://localhost:3000` and seed data is loaded.
+> All examples below use `$BASE` as the API root. Set it for your environment:
+>
+> ```bash
+> # Production
+> BASE=https://events-feed-hermanus.vercel.app
+>
+> # Local dev
+> BASE=http://localhost:3000
+> ```
+>
 > Pipe through `jq` for readable JSON: `curl -s <url> | jq .`
+>
+> Both environments share the same Neon database — writes from either URL affect the same data. Ingest triggers cost ~$0.01/run in Apify compute.
 
 ### GET /api/events — Query events
 
 **Basic list (all active events with confidence >= 0.6):**
 
 ```bash
-curl -s 'http://localhost:3000/api/events' | jq .
+curl -s "$BASE/api/events" | jq .
 ```
 
-Returns 5 active events (the low-confidence pop-up dinner is excluded by the default `min_confidence=0.6`, the cancelled concert is excluded by default `status=active`).
+Returns 5+ active events (the low-confidence pop-up dinner is excluded by the default `min_confidence=0.6`, the cancelled concert is excluded by default `status=active`).
 
 **Date range query — luxury couple trip, 14–21 September 2027:**
 
 ```bash
-curl -s 'http://localhost:3000/api/events?from=2027-09-14&to=2027-09-21&suitable_for=couples,luxury' | jq .
+curl -s "$BASE/api/events?from=2027-09-14&to=2027-09-21&suitable_for=couples,luxury" | jq .
 ```
 
 Expected results:
@@ -293,7 +383,7 @@ The **Whale Festival** (Sep 27–28) should NOT appear — it's outside the 14�
 **Family trip, full June 2027:**
 
 ```bash
-curl -s 'http://localhost:3000/api/events?from=2027-06-01&to=2027-06-30&suitable_for=families' | jq .
+curl -s "$BASE/api/events?from=2027-06-01&to=2027-06-30&suitable_for=families" | jq .
 ```
 
 Expected results:
@@ -305,7 +395,7 @@ FynArts does NOT appear because its `suitable_for` is `["couples", "solo", "luxu
 **Category filter:**
 
 ```bash
-curl -s 'http://localhost:3000/api/events?categories=wildlife' | jq .
+curl -s "$BASE/api/events?categories=wildlife" | jq .
 ```
 
 Returns: Whale watching season, Whale Festival 2027.
@@ -313,7 +403,7 @@ Returns: Whale watching season, Whale Festival 2027.
 **Low confidence threshold (see all events including unverified):**
 
 ```bash
-curl -s 'http://localhost:3000/api/events?min_confidence=0' | jq .
+curl -s "$BASE/api/events?min_confidence=0" | jq .
 ```
 
 Returns all 6 active events (including the pop-up dinner at confidence 0.4).
@@ -321,7 +411,7 @@ Returns all 6 active events (including the pop-up dinner at confidence 0.4).
 **Include cancelled events:**
 
 ```bash
-curl -s 'http://localhost:3000/api/events?status=cancelled' | jq .
+curl -s "$BASE/api/events?status=cancelled" | jq .
 ```
 
 Returns: Cancelled Beach Concert 2027.
@@ -329,8 +419,8 @@ Returns: Cancelled Beach Concert 2027.
 **Pagination:**
 
 ```bash
-curl -s 'http://localhost:3000/api/events?per_page=2&page=1' | jq .
-curl -s 'http://localhost:3000/api/events?per_page=2&page=2' | jq .
+curl -s "$BASE/api/events?per_page=2&page=1" | jq .
+curl -s "$BASE/api/events?per_page=2&page=2" | jq .
 ```
 
 Check `meta.total_count`, `meta.has_more`, `meta.page`.
@@ -339,13 +429,13 @@ Check `meta.total_count`, `meta.has_more`, `meta.page`.
 
 ```bash
 # By relevance (default)
-curl -s 'http://localhost:3000/api/events?sort=relevance' | jq '.data[].title'
+curl -s "$BASE/api/events?sort=relevance" | jq '.data[].title'
 
 # By confidence
-curl -s 'http://localhost:3000/api/events?sort=confidence' | jq '.data[].title'
+curl -s "$BASE/api/events?sort=confidence" | jq '.data[].title'
 
 # By date
-curl -s 'http://localhost:3000/api/events?sort=date' | jq '.data[].title'
+curl -s "$BASE/api/events?sort=date" | jq '.data[].title'
 ```
 
 ### GET /api/events/:id — Single event
@@ -353,28 +443,28 @@ curl -s 'http://localhost:3000/api/events?sort=date' | jq '.data[].title'
 First, get an event ID from the list:
 
 ```bash
-EVENT_ID=$(curl -s 'http://localhost:3000/api/events?per_page=1' | jq -r '.data[0].id')
+EVENT_ID=$(curl -s "$BASE/api/events?per_page=1" | jq -r '.data[0].id')
 echo $EVENT_ID
 ```
 
 Then fetch it:
 
 ```bash
-curl -s "http://localhost:3000/api/events/$EVENT_ID" | jq .
+curl -s "$BASE/api/events/$EVENT_ID" | jq .
 ```
 
 **Non-existent ID:**
 
 ```bash
-curl -s 'http://localhost:3000/api/events/nonexistent' | jq .
+curl -s "$BASE/api/events/nonexistent" | jq .
 ```
 
-Returns 404 with `{ code: "NOT_FOUND", message: "Event 'nonexistent' not found", retryable: false }`.
+Returns 404 with `{ code: "NOT_FOUND", message: "Event 'nonexistent' not found", retryable: false }`. No `suggestion` field.
 
 ### POST /api/events — Create an event
 
 ```bash
-curl -s -X POST http://localhost:3000/api/events \
+curl -s -X POST $BASE/api/events \
   -H 'Content-Type: application/json' \
   -d '{
     "title": "Test Point Event",
@@ -406,7 +496,7 @@ Returns 201 with the created event. Save the returned `id` for update/delete tes
 **Validation error (missing required field):**
 
 ```bash
-curl -s -X POST http://localhost:3000/api/events \
+curl -s -X POST $BASE/api/events \
   -H 'Content-Type: application/json' \
   -d '{"title": "Missing fields"}' | jq .
 ```
@@ -416,7 +506,7 @@ Returns 422 with validation errors.
 **Non-existent source:**
 
 ```bash
-curl -s -X POST http://localhost:3000/api/events \
+curl -s -X POST $BASE/api/events \
   -H 'Content-Type: application/json' \
   -d '{
     "title": "Bad source",
@@ -435,10 +525,10 @@ Requires the current `version` for optimistic concurrency:
 ```bash
 # Get current version
 EVENT_ID="<paste id from create above>"
-VERSION=$(curl -s "http://localhost:3000/api/events/$EVENT_ID" | jq '.data.version')
+VERSION=$(curl -s "$BASE/api/events/$EVENT_ID" | jq '.data.version')
 
 # Update the title
-curl -s -X PUT "http://localhost:3000/api/events/$EVENT_ID" \
+curl -s -X PUT "$BASE/api/events/$EVENT_ID" \
   -H 'Content-Type: application/json' \
   -d "{\"version\": $VERSION, \"title\": \"Updated Test Event\"}" | jq .
 ```
@@ -449,7 +539,7 @@ Returns 200 with the updated event (version incremented).
 
 ```bash
 # Use the OLD version (should fail)
-curl -s -X PUT "http://localhost:3000/api/events/$EVENT_ID" \
+curl -s -X PUT "$BASE/api/events/$EVENT_ID" \
   -H 'Content-Type: application/json' \
   -d "{\"version\": $VERSION, \"title\": \"Stale update\"}" | jq .
 ```
@@ -459,7 +549,7 @@ Returns 409 with `VERSION_CONFLICT` and suggestion to re-fetch.
 ### DELETE /api/events/:id — Soft-delete (cancel)
 
 ```bash
-curl -s -X DELETE "http://localhost:3000/api/events/$EVENT_ID" | jq .
+curl -s -X DELETE "$BASE/api/events/$EVENT_ID" | jq .
 ```
 
 Returns 200 with the event's status set to `"cancelled"`. The event is still in the database — it just won't appear in default queries.
@@ -467,19 +557,19 @@ Returns 200 with the event's status set to `"cancelled"`. The event is still in 
 Verify it no longer appears in default results:
 
 ```bash
-curl -s 'http://localhost:3000/api/events' | jq '.data[].title'
+curl -s "$BASE/api/events" | jq '.data[].title'
 ```
 
 But it appears with the cancelled filter:
 
 ```bash
-curl -s 'http://localhost:3000/api/events?status=cancelled' | jq '.data[].title'
+curl -s "$BASE/api/events?status=cancelled" | jq '.data[].title'
 ```
 
 ### GET /api/events/:id/versions — Audit trail
 
 ```bash
-curl -s "http://localhost:3000/api/events/$EVENT_ID/versions" | jq .
+curl -s "$BASE/api/events/$EVENT_ID/versions" | jq .
 ```
 
 Returns paginated version history showing each change, who made it, and a full snapshot at that version. After create + update + delete, there should be 3 versions.
@@ -487,7 +577,7 @@ Returns paginated version history showing each change, who made it, and a full s
 ### GET /api/sources — List sources
 
 ```bash
-curl -s 'http://localhost:3000/api/sources' | jq .
+curl -s "$BASE/api/sources" | jq .
 ```
 
 Returns all 7 configured sources with their trust levels and last scrape timestamps.
@@ -496,12 +586,12 @@ Returns all 7 configured sources with their trust levels and last scrape timesta
 
 ```bash
 # Trigger for a single source
-curl -s -X POST http://localhost:3000/api/ingest \
+curl -s -X POST $BASE/api/ingest \
   -H 'Content-Type: application/json' \
   -d '{"source_id": "google-events"}' | jq .
 
 # Trigger for all sources
-curl -s -X POST http://localhost:3000/api/ingest \
+curl -s -X POST $BASE/api/ingest \
   -H 'Content-Type: application/json' \
   -d '{"source_id": "all"}' | jq .
 ```
@@ -511,10 +601,10 @@ Returns 202 with an ingest run record (status: "running"). The actual ingestion 
 ### GET /api/ingest/runs — Ingestion history
 
 ```bash
-curl -s 'http://localhost:3000/api/ingest/runs' | jq .
+curl -s "$BASE/api/ingest/runs" | jq .
 
 # Filter by source
-curl -s 'http://localhost:3000/api/ingest/runs?source_id=google-events' | jq .
+curl -s "$BASE/api/ingest/runs?source_id=google-events" | jq .
 ```
 
 Returns paginated list of ingestion runs with stats (events found/created/updated/skipped, tokens used, cost).
@@ -522,16 +612,16 @@ Returns paginated list of ingestion runs with stats (events found/created/update
 ### GET /api/schema — OpenAPI spec
 
 ```bash
-curl -s 'http://localhost:3000/api/schema' | jq .
+curl -s "$BASE/api/schema" | jq .
 ```
 
 Returns the full OpenAPI 3.1 JSON specification. This is what AI agents and tools like Swagger UI read to discover the API.
 
-To view in Swagger UI, paste the URL `http://localhost:3000/api/schema` into [editor.swagger.io](https://editor.swagger.io) or use:
+To view in Swagger UI, paste the production URL `https://events-feed-hermanus.vercel.app/api/schema` into [editor.swagger.io](https://editor.swagger.io) or use:
 
 ```bash
 # Save locally and open with any OpenAPI viewer
-curl -s 'http://localhost:3000/api/schema' > openapi.json
+curl -s "$BASE/api/schema" > openapi.json
 ```
 
 ---
@@ -649,9 +739,9 @@ pnpm tsx -e "
 import 'dotenv/config';
 import { scrapeUrl } from './src/lib/sources/scraper';
 async function main() {
-  const events = await scrapeUrl('https://www.hermanus.co.za/events', 'hermanus-co-za');
-  console.log('Extracted', events.length, 'events');
-  for (const e of events.slice(0, 5)) {
+  const result = await scrapeUrl('https://www.hermanus.co.za/events');
+  console.log('Extracted', result.events.length, 'events (tokens:', result.tokens_used + ')');
+  for (const e of result.events.slice(0, 5)) {
     console.log('-', e.title);
   }
 }
@@ -679,45 +769,49 @@ This fetches the page, sends the HTML to Claude Haiku, and extracts structured e
 
 The full ingest pipeline (fetch -> extract -> deduplicate -> store) can be tested via the API endpoint.
 
+> Ingestion triggers Apify actor runs (~$0.01 each) and writes to the shared Neon database. Works from either environment.
+
 ### Run ingestion via API (recommended)
 
-The simplest way to test the full pipeline. Requires the dev server running (`pnpm dev`).
+The simplest way to test the full pipeline.
 
 ```bash
+BASE=https://events-feed-hermanus.vercel.app  # or http://localhost:3000
+
 # Trigger ingestion for a single source (202 Accepted, runs async)
-curl -s -X POST http://localhost:3000/api/ingest \
+curl -s -X POST $BASE/api/ingest \
   -H 'Content-Type: application/json' \
   -d '{"source_id": "quicket"}' | jq .
 
 # Wait 30-60 seconds, then check the run result
-curl -s 'http://localhost:3000/api/ingest/runs?source_id=quicket' | jq '.data[0]'
+curl -s "$BASE/api/ingest/runs?source_id=quicket" | jq '.data[0]'
 ```
 
 **Test each source** (recommended order — most reliable first):
 
 ```bash
 # 1. Quicket — most reliable, usually 1-10 results
-curl -s -X POST http://localhost:3000/api/ingest \
+curl -s -X POST $BASE/api/ingest \
   -H 'Content-Type: application/json' \
   -d '{"source_id": "quicket"}'
 
 # 2. Eventbrite — good structured data, 0-10 results after Hermanus filter
-curl -s -X POST http://localhost:3000/api/ingest \
+curl -s -X POST $BASE/api/ingest \
   -H 'Content-Type: application/json' \
   -d '{"source_id": "eventbrite"}'
 
 # 3. Google Events — sparse for Hermanus, often 0 results
-curl -s -X POST http://localhost:3000/api/ingest \
+curl -s -X POST $BASE/api/ingest \
   -H 'Content-Type: application/json' \
   -d '{"source_id": "google-events"}'
 
 # 4. Facebook — restricted data, often empty
-curl -s -X POST http://localhost:3000/api/ingest \
+curl -s -X POST $BASE/api/ingest \
   -H 'Content-Type: application/json' \
   -d '{"source_id": "facebook"}'
 
 # 5. TripAdvisor — attractions/places, sparse after filtering
-curl -s -X POST http://localhost:3000/api/ingest \
+curl -s -X POST $BASE/api/ingest \
   -H 'Content-Type: application/json' \
   -d '{"source_id": "tripadvisor"}'
 ```
@@ -725,7 +819,7 @@ curl -s -X POST http://localhost:3000/api/ingest \
 **Check all run results:**
 
 ```bash
-curl -s 'http://localhost:3000/api/ingest/runs' | jq '.data[] | {source_id, status, events_found, events_created, avg_confidence, cost_usd}'
+curl -s "$BASE/api/ingest/runs" | jq '.data[] | {source_id, status, events_found, events_created, avg_confidence, cost_usd}'
 ```
 
 ### Verify ingested events
@@ -734,10 +828,10 @@ After running ingestion, check that new events appear:
 
 ```bash
 # All events including newly ingested
-curl -s 'http://localhost:3000/api/events?per_page=50' | jq '.data[] | {title, source_id, confidence, temporal_type: .temporal.type}'
+curl -s "$BASE/api/events?per_page=50" | jq '.data[] | {title, source_id, confidence, temporal_type: .temporal.type}'
 
 # Updated health stats
-curl -s http://localhost:3000/api/health | jq '.data.events'
+curl -s $BASE/api/health | jq '.data.events'
 ```
 
 **What to check in each run:**
@@ -830,7 +924,7 @@ These are the cases from DESIGN.md, verified by the automated test suite (`tests
 ### Case 1: Luxury couple trip, 14–21 September 2027
 
 ```bash
-curl -s 'http://localhost:3000/api/events?from=2027-09-14&to=2027-09-21&suitable_for=couples,luxury' | jq '.data[].title'
+curl -s "$BASE/api/events?from=2027-09-14&to=2027-09-21&suitable_for=couples,luxury" | jq '.data[].title'
 ```
 
 **Should return:**
@@ -847,7 +941,7 @@ curl -s 'http://localhost:3000/api/events?from=2027-09-14&to=2027-09-21&suitable
 ### Case 2: Family trip, full month of June 2027
 
 ```bash
-curl -s 'http://localhost:3000/api/events?from=2027-06-01&to=2027-06-30&suitable_for=families' | jq '.data[].title'
+curl -s "$BASE/api/events?from=2027-06-01&to=2027-06-30&suitable_for=families" | jq '.data[].title'
 ```
 
 **Should return:**
@@ -865,11 +959,11 @@ Tested automatically — when two sources return the same event with different t
 
 ```bash
 # Active query excludes cancelled
-curl -s 'http://localhost:3000/api/events' | jq '.data[] | select(.title | contains("Cancelled"))'
+curl -s "$BASE/api/events" | jq '.data[] | select(.title | contains("Cancelled"))'
 # (empty — correct)
 
 # Cancelled filter includes it
-curl -s 'http://localhost:3000/api/events?status=cancelled' | jq '.data[].title'
+curl -s "$BASE/api/events?status=cancelled" | jq '.data[].title'
 # "Cancelled Beach Concert 2027"
 ```
 
@@ -923,9 +1017,11 @@ Verify your `ANTHROPIC_API_KEY` is valid and has credits. The model used is `cla
 
 ## Quick Validation Checklist
 
-Run through this after any significant change:
+### Local dev (after code changes)
 
 ```bash
+BASE=http://localhost:3000
+
 # 1. All 86 tests pass
 pnpm test
 
@@ -933,16 +1029,37 @@ pnpm test
 pnpm build
 
 # 3. Health check returns "healthy"
-curl -s http://localhost:3000/api/health | jq '.data.status'
+curl -s $BASE/api/health | jq '.data.status'
 
 # 4. Events query returns seed data
-curl -s 'http://localhost:3000/api/events' | jq '.meta.total_count'
+curl -s "$BASE/api/events" | jq '.meta.total_count'
 
 # 5. Hand-worked Case 1 returns correct events
-curl -s 'http://localhost:3000/api/events?from=2027-09-14&to=2027-09-21&suitable_for=couples,luxury' | jq '[.data[].title] | sort'
+curl -s "$BASE/api/events?from=2027-09-14&to=2027-09-21&suitable_for=couples,luxury" | jq '[.data[].title] | sort'
 
 # 6. OpenAPI spec is valid JSON
-curl -s http://localhost:3000/api/schema | jq '.openapi'
+curl -s $BASE/api/schema | jq '.openapi'
+```
+
+### Production (after deploy)
+
+```bash
+BASE=https://events-feed-hermanus.vercel.app
+
+# 1. Health check returns "healthy"
+curl -s $BASE/api/health | jq '.data.status'
+
+# 2. Events query returns seed data + ingested events
+curl -s "$BASE/api/events" | jq '.meta.total_count'
+
+# 3. Hand-worked Case 1 returns correct events
+curl -s "$BASE/api/events?from=2027-09-14&to=2027-09-21&suitable_for=couples,luxury" | jq '[.data[].title] | sort'
+
+# 4. OpenAPI spec is valid JSON
+curl -s $BASE/api/schema | jq '.openapi'
+
+# 5. Sources all registered
+curl -s $BASE/api/sources | jq '[.data[].id] | length'
 ```
 
 ### Extended checklist (live integration)
@@ -950,20 +1067,22 @@ curl -s http://localhost:3000/api/schema | jq '.openapi'
 Run these if you've changed source adapters or the ingest pipeline. Requires `APIFY_API_KEY` and costs ~$0.02 per source.
 
 ```bash
+BASE=https://events-feed-hermanus.vercel.app  # or http://localhost:3000
+
 # 7. Quicket adapter fetches real events
-curl -s -X POST http://localhost:3000/api/ingest \
+curl -s -X POST $BASE/api/ingest \
   -H 'Content-Type: application/json' \
   -d '{"source_id": "quicket"}'
 # Wait 30-60s, then:
-curl -s 'http://localhost:3000/api/ingest/runs?source_id=quicket' | jq '.data[0] | {status, events_found, events_created}'
+curl -s "$BASE/api/ingest/runs?source_id=quicket" | jq '.data[0] | {status, events_found, events_created}'
 
 # 8. Eventbrite adapter fetches real events
-curl -s -X POST http://localhost:3000/api/ingest \
+curl -s -X POST $BASE/api/ingest \
   -H 'Content-Type: application/json' \
   -d '{"source_id": "eventbrite"}'
 # Wait 30-60s, then:
-curl -s 'http://localhost:3000/api/ingest/runs?source_id=eventbrite' | jq '.data[0] | {status, events_found, events_created}'
+curl -s "$BASE/api/ingest/runs?source_id=eventbrite" | jq '.data[0] | {status, events_found, events_created}'
 
 # 9. Ingested events appear in the API
-curl -s 'http://localhost:3000/api/events?per_page=50' | jq '.meta.total_count'
+curl -s "$BASE/api/events?per_page=50" | jq '.meta.total_count'
 ```

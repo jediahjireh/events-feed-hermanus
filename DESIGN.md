@@ -431,7 +431,7 @@ Three agents, each with a single job:
 | Event sources | Apify actors (Google Events, Facebook Events, Eventbrite, TripAdvisor, Quicket), fetch + Claude for scraping | One API key, one billing model. Ranked by yield. |
 | Scheduling | Vercel Cron (or simple setInterval in dev) | Trigger daily/weekly ingestion and review runs. |
 | Validation | Zod | Runtime schema validation on all ingest data. |
-| Deployment | Vercel | Zero-config Next.js deployment. Free tier sufficient. |
+| Deployment | Vercel ([live](https://events-feed-hermanus.vercel.app)) | Zero-config Next.js deployment. Free tier sufficient. |
 
 **Why not FastAPI/Python:** Next.js API routes handle this well, keep everything in one repo and one language. If the ingestion pipeline needed heavy ML processing or complex data pipelines, Python would be warranted. For structured API + Claude calls + DB operations, TypeScript is simpler.
 

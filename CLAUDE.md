@@ -155,7 +155,7 @@ Every event has a `temporal` field with a `type` discriminator: `"point"`, `"ran
 | AI (extraction) | Claude Haiku 5.5 |
 | Validation | Zod |
 | Event sources | Apify actors (Google Events, Facebook, Eventbrite, TripAdvisor, Quicket), fetch + Claude |
-| Deployment | Vercel |
+| Deployment | Vercel ([live](https://events-feed-hermanus.vercel.app)) |
 
 ## Project Structure
 

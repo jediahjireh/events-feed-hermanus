@@ -23,7 +23,7 @@ Deployment workflow for the event feed. Guides through pre-deploy checks, stagin
 ## Phase 2: Staging Deploy (unless `--skip-staging`)
 
 1. **Deploy to Vercel preview**: Push to a branch or use `vercel --preview`.
-2. **Run smoke tests**: Verify key flows:
+2. **Run smoke tests** against the preview URL — verify key flows:
    - `GET /api/health` returns healthy status
    - `GET /api/events?from=2027-06-01&to=2027-06-30` returns expected seed data
    - `GET /api/events/:id` returns a single event with full detail
@@ -34,12 +34,23 @@ Deployment workflow for the event feed. Guides through pre-deploy checks, stagin
 
 1. **Deploy**: Merge to main or run `vercel --prod`.
 2. **Monitor**: Watch Vercel function logs for the first 10-15 minutes.
-3. **Smoke test production**: Verify health endpoint and key API queries.
+3. **Smoke test production**: Run the production smoke test from [docs/testing-guide.md](../docs/testing-guide.md#quick-smoke-test-scripts).
 
 ## Phase 4: Post-Deploy Validation
 
-1. **Health check**: `GET /api/health` returns OK with DB connected.
-2. **Data integrity**: Verify event counts match expectations.
+Production URL: `https://events-feed-hermanus.vercel.app`
+
+```bash
+BASE=https://events-feed-hermanus.vercel.app
+curl -sf $BASE/api/health | jq -e '.data.status == "healthy"' && echo "Health: PASS" || echo "Health: FAIL"
+curl -sf "$BASE/api/events" | jq -e '.meta.total_count >= 5' && echo "Events: PASS" || echo "Events: FAIL"
+curl -sf "$BASE/api/events?from=2027-09-14&to=2027-09-21&suitable_for=couples,luxury" | jq -e '[.data[].title] | length == 3' && echo "Case 1: PASS" || echo "Case 1: FAIL"
+curl -sf "$BASE/api/schema" | jq -e '.openapi == "3.1.0"' && echo "Schema: PASS" || echo "Schema: FAIL"
+curl -sf "$BASE/api/sources" | jq -e '[.data[].id] | length == 7' && echo "Sources: PASS" || echo "Sources: FAIL"
+```
+
+1. **Health check**: All 5 checks above pass.
+2. **Data integrity**: Verify event counts match expectations (`total_active` in health response).
 3. **API responses**: Confirm `{ data, meta, errors }` structure on all endpoints.
 
 ## Rules

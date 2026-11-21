@@ -4,6 +4,18 @@ A local event feed for Hermanus, South Africa. Collects events from multiple sou
 
 Built as a Magic Safari founding engineer homework project.
 
+## Live API
+
+**Production:** [events-feed-hermanus.vercel.app](https://events-feed-hermanus.vercel.app)
+
+| Endpoint | What it returns |
+| --- | --- |
+| [`/api/health`](https://events-feed-hermanus.vercel.app/api/health) | System health, DB status, event counts by temporal type and confidence |
+| [`/api/events`](https://events-feed-hermanus.vercel.app/api/events) | Active events (default: confidence >= 0.6, status = active) |
+| [`/api/events?from=2027-09-14&to=2027-09-21&suitable_for=couples,luxury`](https://events-feed-hermanus.vercel.app/api/events?from=2027-09-14&to=2027-09-21&suitable_for=couples,luxury) | Date range query — the core use case |
+| [`/api/sources`](https://events-feed-hermanus.vercel.app/api/sources) | All 7 configured event sources |
+| [`/api/schema`](https://events-feed-hermanus.vercel.app/api/schema) | OpenAPI 3.1 spec (paste into [editor.swagger.io](https://editor.swagger.io)) |
+
 ## Start Here
 
 | File                                       | What it is                                                                                                                                                                  |
