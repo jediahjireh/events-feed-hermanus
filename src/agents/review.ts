@@ -84,8 +84,13 @@ export async function runReview(
 
   for (const event of eventsToReview) {
     try {
-      const sourceUrl =
-        (event.source_url ?? event.links?.source_url)!;
+      const sourceUrl = event.source_url ?? event.links?.source_url;
+      if (!sourceUrl) {
+        report.errors.push(
+          `No source URL for event "${event.title}" (${event.id}) — skipping`
+        );
+        continue;
+      }
 
       // Fetch the source page
       let pageContent: string;

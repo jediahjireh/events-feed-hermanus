@@ -118,7 +118,7 @@ EventVersion
 └── snapshot       Event           ← full event at this version
 ```
 
-This enables the spec's question: *"How would you go back to see what effect a change had?"* Every ingestion run creates a new version if anything changed. You can diff any two versions to see what the agent changed and whether it improved or degraded the data.
+This answers the spec's question: *"How would you go back to see what effect a change had?"* Every ingestion run creates a new version if anything changed. You can diff any two versions to see what the agent changed and whether it improved or degraded the data.
 
 ---
 
@@ -270,7 +270,7 @@ Three agents, each with a single job:
 
 **Why this order:** Google Events (via SerpAPI) aggregates what Google already indexes — the broadest net, confirmed reliable for Hermanus with 5-6 results per query. Facebook Events is the dominant event platform in SA, accessible via Apify actor (bypassing Facebook's restricted APIs), though frequently rate-limited. Quicket is South Africa's primary ticketing platform — if an event sells tickets, it's likely on Quicket. Eventbrite (via SerpAPI) covers professionally organised events with structured data including GPS coordinates. TripAdvisor (via SerpAPI) surfaces tourist-facing activities and experiences. Local tourism sites fill the gap for community events. Manual submission is the long-term play for events no scraper can find (church fetes, pop-up dinners, wine farm events announced only via email newsletters). Hybrid strategy: SerpAPI for structured search APIs (Google Events, Eventbrite, TripAdvisor) where it returns reliable Hermanus results; Apify actors for social media scraping (Facebook, Quicket) where SerpAPI has no equivalent.
 
-**What we won't get (the honest gap):** No combination of APIs and scrapers gives full coverage for a town of ~91K people. Informal community events, last-minute pop-ups, and wine farm email-only events will be missed. The manual submission form and local partnerships (tourism bureau, Hermanus Times newspaper) are essential for filling this gap. The system is designed to start sparse and improve as sources are added.
+**What we won't get (the honest gap):** No combination of APIs and scrapers gives full coverage for a town of ~91K people. Informal community events, last-minute pop-ups, and wine farm email-only events will be missed. The manual submission form and local partnerships (tourism bureau, Hermanus Times newspaper) are essential for filling this gap. The system starts sparse and improves as sources are added.
 
 ---
 
@@ -469,7 +469,7 @@ Three agents, each with a single job:
 | 50 | ~40K | $80 | $7.50 | **$88** |
 | 100 | ~80K | $160 | $15 | **$175** |
 
-SerpAPI and Apify are the dominant costs at scale — SerpAPI for Google Events, Eventbrite, and TripAdvisor search queries, Apify for Facebook and Quicket scraping. Both offer pay-per-use pricing with no plan tiers to jump between. Two API keys (SerpAPI + Apify) cover all five source adapters. Claude Haiku 5.5 at $0.10/M input tokens is essentially free for structured extraction workloads.
+SerpAPI and Apify are the dominant costs at scale — SerpAPI for Google Events, Eventbrite, and TripAdvisor search queries, Apify for Facebook and Quicket scraping. Both offer pay-per-use pricing with no plan tiers to jump between. Two API keys (SerpAPI + Apify) cover all five source adapters. Claude Haiku 5.5 at $0.10/M input tokens is negligible for structured extraction workloads.
 
 ### Model choices rationale
 - **Haiku 5.5 for extraction/review:** $0.10/M input, $0.50/M output. 90% cheaper than Haiku 4.5. Structured extraction from HTML doesn't need reasoning — Haiku handles it at a fraction of a cent per page.

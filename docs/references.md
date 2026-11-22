@@ -64,7 +64,7 @@ Hybrid source strategy: SerpAPI for Google Events, Eventbrite, and TripAdvisor (
 |---|---|---|
 | Google Events | [serpapi.com/google-events-api](https://serpapi.com/google-events-api) | Query: "Events in Hermanus". Returns structured event data with dates, venues, tickets. |
 | Eventbrite | [serpapi.com/eventbrite-search-api](https://serpapi.com/eventbrite-search-api) | Location: "Hermanus, Western Cape, South Africa". GPS bounding box filter applied client-side. |
-| TripAdvisor | [serpapi.com/tripadvisor-search-api](https://serpapi.com/tripadvisor-search-api) | 3 parallel queries: "hermanus things to do", "hermanus events", "hermanus whale watching tours". Deduped by place_id, filtered to Hermanus area. |
+| TripAdvisor | [serpapi.com/tripadvisor-search-api](https://serpapi.com/tripadvisor-search-api) | 2 parallel queries: "hermanus things to do" and "hermanus whale watching tours" (dropped "hermanus events" — overlapped heavily). Deduped by place_id, filtered to Hermanus area, locations excluded. |
 | Meta Ad Library | [serpapi.com/meta-ad-library-api](https://serpapi.com/meta-ad-library-api) | Returns Facebook/Instagram/Messenger ads mentioning "hermanus" (435 results Nov 2026). Mostly business promotions, not events — low signal-to-noise for event extraction. Some ads contain event-like data (tour dates, seasonal activities). Potential future supplementary source if Facebook Events adapter remains unreliable. |
 
 ### Apify Actor References

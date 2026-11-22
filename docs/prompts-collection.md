@@ -287,7 +287,7 @@ _Further corrections appended during the build:_
 - **[Facebook rate-limited]:** `apify/facebook-events-scraper` hit Facebook's anonymous rate limits on 11/11 retries (Nov 2026). Kept adapter in place but expect frequent failures.
 - **[TripAdvisor returns locations, not events]:** SerpAPI TripAdvisor returns beaches, reserves, hotels — not just activities. Added two-layer filtering: adapter-level `place_type` + keyword exclusion, plus a REJECT instruction in the Claude extraction prompt as a safety net. Dropped the redundant "hermanus events" query (3→2 SerpAPI calls).
 - **[Cross-type dedup was blind to seasonal vs recurring]:** `temporalOverlap()` in `dedup.ts` had a blanket `return false` for any cross-type comparison involving seasonal events. A whale cruise listed as seasonal (Jun–Nov) from one source and recurring (daily) from another would never be detected as a duplicate — even with title similarity of 1.0. Fixed with `seasonalCompatibleWith()` and `recurrencesCompatible()` helpers. 9 new tests.
-- **22 total lessons** accumulated in `tasks/lessons.md` — real production patterns, not theoretical.
+- **23 total lessons** accumulated in `tasks/lessons.md` — real production patterns, not theoretical.
 
 ---
 

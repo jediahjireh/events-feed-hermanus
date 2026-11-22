@@ -49,7 +49,7 @@ Note: The frontend build, /verify audit, multi-fix cycle, and doc updates were a
 | 50           | Scale ($499/month)     | $499        | $7.50           | **~$507**   |
 | 100          | Business (custom)      | ~$800       | $15             | **~$815**   |
 
-Hybrid source strategy: SerpAPI for Google Events + Eventbrite + TripAdvisor (structured search APIs), Apify for Facebook + Quicket (social media scraping). SerpAPI free tier (250 searches/month) covers v1 easily. At scale, SerpAPI tiers ($50/5000 searches) are competitive. Apify platform compute dominates cost for the scraping sources. Claude Haiku 5.5 at $0.10/M input tokens is essentially free for structured extraction workloads.
+Hybrid source strategy: SerpAPI for Google Events + Eventbrite + TripAdvisor (structured search APIs), Apify for Facebook + Quicket (social media scraping). SerpAPI free tier (250 searches/month) covers v1 easily. At scale, SerpAPI tiers ($50/5000 searches) are competitive. Apify platform compute dominates cost for the scraping sources. Claude Haiku 5.5 at $0.10/M input tokens is negligible for structured extraction workloads.
 
 **Options to reduce cost at scale:** Cache SerpAPI results (1h cache built-in, `no_cache=false`). Don't re-run Apify actors within 24h. Reduce run frequency for low-change destinations.
 

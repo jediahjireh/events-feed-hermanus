@@ -539,10 +539,17 @@ async function updateExistingEvent(
   const currentImages = current.images ?? [];
   const mergedImages = [...new Set([...currentImages, ...data.images])];
 
+  // Prefer the rarer/more specific temporal classification — it likely came
+  // from a source with better information. Priority: seasonal (month-range) >
+  // range (specific dates) > point (single date) > recurring (often a default).
+  // e.g. whale cruises as "recurring daily" vs "seasonal Jun-Nov" → keep seasonal.
+  const mergedTemporal = preferRicherTemporal(current.temporal, data.temporal);
+
   const [updated] = await db
     .update(events)
     .set({
       description: data.description ?? current.description,
+      temporal: mergedTemporal,
       source_url: current.source_url ?? data.source_url,
       categories: mergedCategories,
       suitable_for: mergedSuitableFor,
@@ -572,9 +579,37 @@ async function updateExistingEvent(
       suitable_for_added: mergedSuitableFor.filter(
         (s) => !currentSuitableFor.includes(s)
       ),
+      ...(mergedTemporal !== current.temporal && {
+        temporal_upgraded: {
+          from: current.temporal.type,
+          to: mergedTemporal.type,
+        },
+      }),
     },
     snapshot: { ...updated },
   });
+}
+
+/**
+ * When merging duplicates, prefer the less common (more specific) temporal type.
+ * Rarer classifications usually came from a source with better information.
+ * Priority: seasonal > range > point > recurring.
+ * "recurring" is lowest because sources with sparse data often default to it.
+ */
+const TEMPORAL_PRIORITY: Record<string, number> = {
+  recurring: 0,
+  point: 1,
+  range: 2,
+  seasonal: 3,
+};
+
+function preferRicherTemporal(
+  existing: CreateEventInput["temporal"],
+  incoming: CreateEventInput["temporal"]
+): CreateEventInput["temporal"] {
+  const existingPriority = TEMPORAL_PRIORITY[existing.type] ?? 0;
+  const incomingPriority = TEMPORAL_PRIORITY[incoming.type] ?? 0;
+  return incomingPriority > existingPriority ? incoming : existing;
 }
 
 async function finaliseRun(
