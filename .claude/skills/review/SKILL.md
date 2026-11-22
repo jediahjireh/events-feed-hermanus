@@ -37,7 +37,7 @@ For each event:
    - **Page says "CANCELLED":** Set `status: "cancelled"`. Create EventVersion.
 
 3. For low-confidence events, attempt secondary source verification:
-   - Search other Apify actors (Google Events, Facebook Events, Eventbrite) for the event title + location.
+   - Search SerpAPI (Google Events, Eventbrite) or Apify actors (Facebook Events) for the event title + location.
    - If found on a second source, merge data and bump confidence.
    - If not found on any secondary source, keep existing confidence (absence of evidence ≠ evidence of absence for small-town events).
 

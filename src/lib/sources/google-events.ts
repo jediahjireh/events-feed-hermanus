@@ -1,64 +1,51 @@
 /**
- * Google Events adapter via Apify actor.
+ * Google Events adapter via SerpAPI.
  *
- * Direct replacement for SerpAPI's Google Events engine.
- * Uses the johnvc/google-events-api---access-google-events-data actor
- * to fetch the same underlying Google Events data through Apify.
+ * Uses SerpAPI's Google Events engine (udm=54 mobile events vertical)
+ * to fetch events from Google's events search for Hermanus.
  *
- * Actor schema verified Nov 2026 against https://apify.com/johnvc/google-events-api---access-google-events-data
+ * SerpAPI confirmed to return Hermanus events reliably (Nov 2026).
+ * Previously used Apify actor (johnvc/google-events-api) but it returned
+ * sparse/empty results for Hermanus.
+ *
+ * API docs: https://serpapi.com/google-events-api
  */
 
-import { fetchApifyActor } from "./apify";
+import { fetchSerpApi } from "./serpapi";
 
 /**
- * A single event from the Google Events actor output.
- * The actor returns dataset items with an `events` array inside each.
+ * A single event from the SerpAPI Google Events response.
+ * Matches the events_results[] schema from the API.
  */
 export type RawGoogleEvent = {
   title: string;
-  type?: string; // e.g. "Live concert"
+  type?: string; // e.g. "Christmas variety show", "Live rock concert"
   date?: {
-    start_date?: string; // e.g. "Aug 14"
-    when?: string; // e.g. "Aug 14, 2:30 PM"
+    start_date?: string; // e.g. "Dec 3"
+    when?: string; // e.g. "Dec 3, 6:00 PM"
   };
-  time?: string;
-  address?: string[]; // venue name and location lines
-  venue_name?: string;
-  area?: string;
-  venue?: { name?: string; link?: string };
-  ticket_info?: { seller?: string; link?: string }[];
-  link?: string;
-  source?: string;
+  venue?: {
+    name?: string;
+    link?: string;
+  };
+  address?: string[]; // e.g. ["Hermanus Golf Club", "Hermanus, South Africa"]
+  ticket_info?: { source?: string; link?: string; link_type?: string }[];
+  thumbnail?: string;
+  event_token?: string;
   price?: string;
   extracted_price?: number;
-  map_link?: string;
-  description?: string;
 };
-
-/** Wrapper type matching the actor's dataset item structure. */
-type GoogleEventsDatasetItem = {
-  events?: RawGoogleEvent[];
-  search_parameters?: Record<string, unknown>;
-  search_metadata?: Record<string, unknown>;
-  search_timestamp?: string;
-};
-
-const ACTOR_ID = "johnvc/google-events-api---access-google-events-data";
 
 /**
- * Fetch events from Google Events via the Apify actor.
- * Flattens the nested events array from the dataset response.
+ * Fetch events from Google Events via SerpAPI.
+ * Returns structured event data for Hermanus.
  */
 export async function fetchGoogleEvents(): Promise<RawGoogleEvent[]> {
-  const items = await fetchApifyActor<GoogleEventsDatasetItem>(ACTOR_ID, {
-    mode: "events",
-    q: "events in Hermanus South Africa",
-    location: "Hermanus, Western Cape, South Africa",
-    hl: "en",
-    advanced: "date:month",
-    include_details: true,
-  });
-
-  // Flatten: each dataset item has an `events` array
-  return items.flatMap((item) => item.events ?? []);
+  return fetchSerpApi<RawGoogleEvent>(
+    "google_events",
+    {
+      q: "Events in Hermanus",
+    },
+    (body) => (body.events_results as RawGoogleEvent[]) ?? [],
+  );
 }

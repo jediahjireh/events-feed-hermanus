@@ -6,7 +6,7 @@ References to "recent projects" and "engineering templates" refer to other codeb
 
 ---
 
-> **Historical note (Nov 2026):** The prompts and build log below reference SerpAPI as the Google Events data source. After the initial build, SerpAPI was replaced with Apify actors for all event sources: `google-events` (`johnvc/google-events-api---access-google-events-data`), `facebook` (`apify/facebook-events-scraper`), `eventbrite` (`parseforge/eventbrite-scraper`), `tripadvisor` (`maxcopell/tripadvisor`), `quicket` (`gtnetworks/sa-events-listings`), `hermanus-co-za`, and `manual`. `SERPAPI_KEY` was removed; only `APIFY_API_KEY` is needed. The prompts are preserved as-is for process documentation.
+> **Historical note (Nov 2026):** The prompts below reference SerpAPI as the initial Google Events data source. During build, we briefly migrated to all-Apify actors, then restored SerpAPI when Apify's Google Events and Eventbrite actors returned sparse/empty results for Hermanus. Final architecture is a **hybrid**: SerpAPI for Google Events + Eventbrite (reliable structured search); Apify actors for Facebook, TripAdvisor, and Quicket (social media scraping). Both `SERPAPI_API_KEY` and `APIFY_API_KEY` are required. The prompts are preserved as-is for process documentation.
 
 ## Phase 1: Research and Context Gathering
 
@@ -227,7 +227,7 @@ Claude reads CLAUDE.md automatically, picks up the todo, reads each build prompt
 
 > Status: done
 > Executed: 2026-11-21
-> Notes: Originally built with SerpAPI adapter + pagination. Later replaced with 4 Apify actors (Google Events, Facebook, Eventbrite, TripAdvisor) + shared utility. Full ingest pipeline unchanged: Claude Haiku extraction → Zod validation → dedup → create/update with EventVersion. Run report with token/cost tracking.
+> Notes: Originally built with SerpAPI adapter + pagination. Briefly replaced with Apify actors, then restored to hybrid: SerpAPI for Google Events + Eventbrite (reliable Hermanus results), Apify for Facebook + TripAdvisor + Quicket (social/scraping sources). Full ingest pipeline unchanged: Claude Haiku extraction → Zod validation → dedup → create/update with EventVersion. Run report with token/cost tracking.
 
 ### 4.8 — Quicket integration (Prompt 4.2)
 
@@ -281,6 +281,114 @@ _Captured during the build session._
 **Lesson:** Every factual claim must be verified against current sources before finalising. One wrong number cascades. See `tasks/lessons.md` → [Verify All Claims].
 
 _Further corrections appended during the build:_
+
+- **[Haiku 5.5 thinking blocks]:** `response.content[0]` returns a `thinking` block, not `text`. All 3 extraction/review paths used `content[0]` and silently got empty strings. Fix: `response.content.find(b => b.type === "text")`. Caught during live testing, not unit tests.
+- **[Eventbrite titles lie about location]:** "in Cape Town, South Africa" in the title, but venue is Arabella Hotel in the Hermanus/Kleinmond area. Trust GPS coordinates over titles for location filtering.
+- **[Facebook rate-limited]:** `apify/facebook-events-scraper` hit Facebook's anonymous rate limits on 11/11 retries (Nov 2026). Kept adapter in place but expect frequent failures.
+- **20 total lessons** accumulated in `tasks/lessons.md` — real production patterns, not theoretical.
+
+---
+
+## Phase 6: Frontend Build (Beyond Scope)
+
+_The homework spec asked for a design write-up + working code. Building a frontend was not required but makes the demo tangible and proves the system end-to-end._
+
+### 6.1 — Frontend planning (plan mode)
+
+```text
+Build a frontend for the Hermanus Event Feed. Three pages:
+1. / — Events feed with filter bar, event cards, pagination
+2. /events/[id] — Event detail with version history, edit/delete
+3. /admin — Admin panel with health overview, ingest/review triggers, E2E test runner
+
+Style to match Magic Safari brand (deep-forest, vibrant-leaf, fresh-mint,
+whisper-green, soft-sage, warm-bg). Crimson Text headings, Montserrat body.
+Tailwind CSS v4.
+
+No extra deps beyond Tailwind. URL-based filter state via useSearchParams.
+Server components for read-only views, client components for interactive.
+```
+
+**What it produced:** Plan with 20 implementation steps, brand token table, component inventory (15+ components), page designs. User approved before any code was written.
+
+> Status: done
+> Executed: 2026-11-22
+> Notes: Plan mode → user approval → build. This is the directed workflow: human reviews architecture before Claude writes code.
+
+### 6.2 — Foundation + UI primitives
+
+> Status: done
+> Executed: 2026-11-22
+> Notes: Tailwind v4 CSS-first config (no tailwind.config.ts), Crimson Text + Montserrat via next/font/google, 7 UI primitives (temporal-badge, confidence-meter, status-indicator, pagination-controls, loading-spinner, modal, button). Navbar with active state.
+
+### 6.3 — Events feed (/) + event detail (/events/[id])
+
+> Status: done
+> Executed: 2026-11-22
+> Notes: Filter bar (date range, categories, suitable_for, sort), event card grid with temporal badges, pagination. Event detail with full fields, version timeline, inline edit form with optimistic concurrency, delete with confirmation modal.
+
+### 6.4 — Admin panel (/admin)
+
+> Status: done
+> Executed: 2026-11-22
+> Notes: 4 tabs: Health Overview (source cards, event stats), Ingest Panel (source picker + trigger + run history with auto-refresh), Review Panel (scope picker + trigger + results), E2E Test Runner (19 sequential checks exercising all 13 API endpoints live). The E2E runner is the crown jewel — it proves the system works, not just that it compiles.
+
+---
+
+## Phase 7: Verification & Hardening
+
+_Running /verify after the frontend build caught 20 issues across 4 severity levels. This is the iterative quality cycle that separates directed AI usage from "run Claude and ship."_
+
+### 7.1 — /verify audit
+
+```text
+Run /project:verify on the full codebase.
+```
+
+**What it produced:** 20 findings:
+- 3 must-fix: security vulnerability (unbounded LLM output in DB writes), stale date in serverless (module-level Date()), non-JSON crash in api-client
+- 8 should-fix: dead code (unused imports), cost calculation errors, full table scan in dedup, accessibility gaps (modal has no Escape/ARIA)
+- 3 doc fixes: stale historical notes, wrong field names in testing guide
+- 6 info-level: minor style issues
+
+> Status: done
+> Executed: 2026-11-22
+> Notes: The security finding (review agent spreading raw Claude output into DB .set()) would have been a real vulnerability in production. Caught by systematic audit, not by accident.
+
+### 7.2 — Apply all fixes + regression test
+
+```text
+Fix all must-fix, should-fix, and doc-fix issues from the /verify audit.
+Run build + full test suite after to confirm no regressions.
+```
+
+**What it produced:** 14 fixes applied across security (LLM output whitelist), correctness (cost calc, stale date, non-JSON crash), DRY (shared `extractJson`), accessibility (modal ARIA + Escape), dead code removal, and doc corrections. Build: 0 errors. Tests: 125/125 pass.
+
+> Status: done
+> Executed: 2026-11-22
+> Notes: Regression verified — all fixes confirmed correct, no test failures, no build errors.
+
+### 7.3 — Re-verify
+
+```text
+Run /project:verify again after fixes to confirm clean state.
+```
+
+> Status: done
+> Executed: 2026-11-22
+> Notes: All clear — no TODOs, no stale model IDs, no content[0] patterns, no duplicate functions, all API routes use helpers, .env.example correct.
+
+---
+
+## Phase 8: Documentation Updates
+
+_Updating tracking docs, prompts collection, and talking points to reflect the full build scope including frontend and verification phases._
+
+### 8.1 — Time, cost, and process docs
+
+> Status: done
+> Executed: 2026-11-22
+> Notes: Updated tracking/time.md (full commit timeline + active time analysis), tracking/cost.md (frontend session), docs/prompts-collection.md (Phases 6-8), docs/talking-points.md (frontend + verification evidence).
 
 ---
 

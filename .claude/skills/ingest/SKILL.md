@@ -20,9 +20,9 @@ If "dry-run", do everything except write to the database — output what would b
 
 ### 2. Fetch raw data
 
-- **Google Events**: Run the Apify actor `johnvc/google-events-api---access-google-events-data` with query `"events in Hermanus South Africa"`. Fetch the dataset results.
-- **Facebook Events**: Run the Apify actor `apify/facebook-events-scraper` targeting Hermanus event pages.
-- **Eventbrite**: Run the Apify actor `parseforge/eventbrite-scraper` for Hermanus/Western Cape events.
+- **Google Events**: Call SerpAPI `google_events` engine with query `"Events in Hermanus"`. Returns structured event data.
+- **Facebook Events**: Run the Apify actor `apify/facebook-events-scraper` targeting Hermanus event pages. Note: frequently rate-limited by Facebook.
+- **Eventbrite**: Call SerpAPI `eventbrite` engine with location `"Hermanus, Western Cape, South Africa"`. Client-side GPS bounding box filter applied.
 - **TripAdvisor**: Run the Apify actor `maxcopell/tripadvisor` for Hermanus attractions and events.
 - **Quicket**: Run the Apify actor `gtnetworks/sa-events-listings`. Filter results for Hermanus/Western Cape.
 - **Scrapers**: Fetch the page HTML via `fetch()`, pass to Claude Haiku with extraction prompt.

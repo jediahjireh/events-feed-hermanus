@@ -19,7 +19,9 @@ vi.mock("@/db", () => ({
     insert: mockInsert,
     update: mockUpdate,
     select: () => ({
-      from: () => Promise.resolve([]), // No existing events for dedup
+      from: () => ({
+        where: () => Promise.resolve([]), // No existing events for dedup
+      }),
     }),
   },
 }));

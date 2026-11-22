@@ -473,14 +473,14 @@ describe("Default confidence threshold behaviour", () => {
     expect(lowConf.confidence).toBeLessThan(0.6);
   });
 
-  it("all 5 active events above threshold appear for full-year query", () => {
+  it("all 6 active events above threshold appear for full-year query", () => {
     const results = queryEvents({
       from: "2027-01-01",
       to: "2027-12-31",
     });
-    // Should include: whale watching, market, FynArts, whale festival, wine tasting
+    // Should include: whale watching, market, FynArts, whale festival, wine tasting, gin & jazz
     // Should exclude: cancelled (status), low-confidence (0.4 < 0.6)
-    expect(results.length).toBe(5);
+    expect(results.length).toBe(6);
   });
 });
 

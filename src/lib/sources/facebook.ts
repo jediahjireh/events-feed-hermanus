@@ -2,11 +2,19 @@
  * Facebook Events adapter via Apify actor.
  *
  * Most Hermanus event organisers post on Facebook, but the Graph API
- * severely restricts event search since 2019. This actor bypasses
- * that restriction entirely — a proxy layer for restricted APIs.
+ * severely restricts event search since 2019. This actor attempts to
+ * bypass that restriction via anonymous GraphQL scraping.
  *
- * Discovered while browsing the Apify store; directly addresses the gap
- * documented in the pen-and-paper design notes under "What we can't get."
+ * WARNING: As of Nov 2026, this actor frequently hits Facebook's
+ * "Rate limit exceeded" error on anonymous searches (11/11 retries
+ * failed in testing). Keep the adapter in place — Facebook is where
+ * most Hermanus organisers post — but expect intermittent failures.
+ * The ingest pipeline handles fetch errors gracefully (marks run as failed).
+ *
+ * Uses multiple search queries to maximise coverage when it does work:
+ * - "Hermanus events" for direct matches
+ * - "Overberg events" for broader regional coverage
+ * - "Hermanus market" for the popular markets (Old Harbour, Sandbaai, etc.)
  *
  * Actor schema verified Nov 2026 against live API output.
  * Note: when no events are found, the actor returns { error: "no_items" }
@@ -49,7 +57,11 @@ export async function fetchFacebookEvents(): Promise<RawFacebookEvent[]> {
   return fetchApifyActor<RawFacebookEvent>(
     ACTOR_ID,
     {
-      searchQueries: ["events in Hermanus South Africa"],
+      searchQueries: [
+        "Hermanus events",
+        "Overberg events",
+        "Hermanus market",
+      ],
       maxEvents: 50,
     },
     (e) =>

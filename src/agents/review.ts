@@ -8,11 +8,13 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import { db } from "@/db";
-import { events, eventVersions, sources } from "@/db/schema";
-import { eq, and, gte, lte, or } from "drizzle-orm";
+import { events, eventVersions } from "@/db/schema";
+import { eq, and, lte } from "drizzle-orm";
 import { ulid } from "ulid";
+import { extractJson } from "@/lib/extract-json";
 
 type ReviewReport = {
+  events_in_scope: number;
   events_checked: number;
   events_confirmed: number;
   events_updated: number;
@@ -56,6 +58,7 @@ export async function runReview(
   scope: ReviewScope = "upcoming"
 ): Promise<ReviewReport> {
   const report: ReviewReport = {
+    events_in_scope: 0,
     events_checked: 0,
     events_confirmed: 0,
     events_updated: 0,
@@ -65,8 +68,14 @@ export async function runReview(
     errors: [],
   };
 
-  // Select events to review based on scope
-  const eventsToReview = await selectEventsForReview(scope);
+  // Select events to review based on scope, filtering to those with a verifiable URL
+  const allCandidates = await selectEventsForReview(scope);
+  report.events_in_scope = allCandidates.length;
+
+  const eventsToReview = allCandidates.filter(
+    (e) => e.source_url || e.links?.source_url
+  );
+
   report.events_checked = eventsToReview.length;
 
   if (eventsToReview.length === 0) return report;
@@ -76,12 +85,7 @@ export async function runReview(
   for (const event of eventsToReview) {
     try {
       const sourceUrl =
-        event.source_url ?? event.links?.source_url;
-
-      if (!sourceUrl) {
-        // No source URL to check — skip
-        continue;
-      }
+        (event.source_url ?? event.links?.source_url)!;
 
       // Fetch the source page
       let pageContent: string;
@@ -125,7 +129,7 @@ export async function runReview(
 
       const result = await anthropic.messages.create({
         model: "claude-haiku-5-5",
-        max_tokens: 512,
+        max_tokens: 1024,
         messages: [
           {
             role: "user",
@@ -141,7 +145,7 @@ export async function runReview(
       // Find the text block — Haiku 5.5 may prepend thinking blocks
       const textBlock = result.content.find((b) => b.type === "text");
       const text = textBlock && "text" in textBlock ? textBlock.text : "";
-      const jsonStr = text.replace(/```json?\n?/g, "").replace(/```\n?/g, "").trim();
+      const jsonStr = extractJson(text);
 
       try {
         const verification = JSON.parse(jsonStr);
@@ -157,11 +161,12 @@ export async function runReview(
           report.events_updated++;
         } else {
           // Event confirmed — bump last_verified_at
-          await confirmEvent(event.id, event.version);
+          await confirmEvent(event.id);
           report.events_confirmed++;
         }
       } catch {
-        report.errors.push(`Failed to parse review result for "${event.title}"`);
+        const preview = jsonStr.slice(0, 120).replace(/\n/g, " ");
+        report.errors.push(`Failed to parse review result for "${event.title}" (response: ${preview}...)`);
       }
     } catch (err) {
       report.errors.push(
@@ -170,13 +175,16 @@ export async function runReview(
     }
   }
 
-  // Calculate cost
+  // Haiku pricing: $0.10/M input, $0.50/M output
+  // Approximate 80% input / 20% output split
+  const inputTokens = Math.round(report.tokens_used * 0.8);
+  const outputTokens = report.tokens_used - inputTokens;
   report.cost_usd =
-    (report.tokens_used * 0.1) / 1_000_000 +
-    (report.tokens_used * 0.2 * 0.5) / 1_000_000;
+    (inputTokens * 0.1) / 1_000_000 +
+    (outputTokens * 0.5) / 1_000_000;
 
-  // Check source trust levels
-  await updateSourceTrust(report);
+  // Log warning if stale rate is high
+  logStaleRateWarning(report);
 
   return report;
 }
@@ -302,15 +310,17 @@ async function updateEventStatus(
   });
 }
 
-async function confirmEvent(
-  eventId: string,
-  currentVersion: number
-): Promise<void> {
+async function confirmEvent(eventId: string): Promise<void> {
   await db
     .update(events)
     .set({ last_verified_at: new Date() })
     .where(eq(events.id, eventId));
 }
+
+/** Fields that the review agent is allowed to update from Claude's output. */
+const ALLOWED_CHANGE_FIELDS = new Set([
+  "title", "description", "price_indication",
+]);
 
 async function applyChanges(
   event: typeof events.$inferSelect,
@@ -319,10 +329,18 @@ async function applyChanges(
   const now = new Date();
   const newVersion = event.version + 1;
 
+  // Whitelist: only allow safe fields from Claude's review output
+  const safeChanges: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(changes)) {
+    if (ALLOWED_CHANGE_FIELDS.has(key)) {
+      safeChanges[key] = value;
+    }
+  }
+
   const [updated] = await db
     .update(events)
     .set({
-      ...changes,
+      ...safeChanges,
       updated_at: now,
       last_verified_at: now,
       version: newVersion,
@@ -341,14 +359,11 @@ async function applyChanges(
   });
 }
 
-async function updateSourceTrust(report: ReviewReport): Promise<void> {
+function logStaleRateWarning(report: ReviewReport): void {
   if (report.events_checked === 0) return;
 
   const staleRate = report.events_stale / report.events_checked;
   if (staleRate > 0.3) {
-    // Lower trust level for sources with high stale rates
-    // This is a simplified version — a full implementation would
-    // track stale rates per source
     console.warn(
       `Review: ${(staleRate * 100).toFixed(0)}% stale rate detected. Consider lowering source trust levels.`
     );

@@ -14,6 +14,7 @@ import { ulid } from "ulid";
 import { CreateEventSchema, type CreateEventInput } from "@/types/event";
 import { findDuplicates, type DedupCandidate } from "@/lib/dedup";
 import { slugify } from "@/lib/slug";
+import { extractJson } from "@/lib/extract-json";
 
 type IngestReport = {
   run_id: string;
@@ -28,7 +29,12 @@ type IngestReport = {
   errors: string[];
 };
 
-const EXTRACTION_PROMPT = `Extract event data from this raw listing into valid JSON matching the schema below.
+function buildExtractionPrompt(): string {
+  const today = new Date().toISOString().slice(0, 10);
+  const year = new Date().getFullYear();
+  return `Extract event data from this raw listing into valid JSON matching the schema below.
+
+Today's date is ${today}. Use this to infer the year when dates lack a year (e.g. "Dec 3" means ${year}-12-03). start_date MUST always be a valid YYYY-MM-DD string for point and range events — never null.
 
 Classify the temporal type as one of:
 - "point": single date event
@@ -40,7 +46,7 @@ If the event has multiple specific dates, use "range" with a dates array.
 
 Explain your temporal classification in one sentence in a "reasoning" field.
 
-If you're not confident about any field, set it to null. Set confidence to a number between 0 and 1 based on how complete and unambiguous the source data is.
+If you're not confident about any field, set it to null — except start_date for point/range events, which must always be a YYYY-MM-DD string. Set confidence to a number between 0 and 1 based on how complete and unambiguous the source data is.
 
 Schema:
 {
@@ -81,6 +87,7 @@ Respond with ONLY valid JSON. No markdown, no explanation outside the JSON.
 
 Raw listing:
 `;
+}
 
 /**
  * Run the full ingestion pipeline for a source.
@@ -111,8 +118,16 @@ export async function runIngest(
   const anthropic = new Anthropic();
   const confidences: number[] = [];
 
-  // Fetch existing events for dedup
-  const existingRows = await db.select().from(events);
+  // Fetch existing events for dedup (only active, only fields needed)
+  const existingRows = await db
+    .select({
+      id: events.id,
+      title: events.title,
+      temporal: events.temporal,
+      location: events.location,
+    })
+    .from(events)
+    .where(eq(events.status, "active"));
   const existingCandidates: DedupCandidate[] = existingRows.map((e) => ({
     id: e.id,
     title: e.title,
@@ -132,7 +147,7 @@ export async function runIngest(
       const input: CreateEventInput = {
         ...extracted,
         source_id: sourceId,
-        source_url: (raw as { link?: string }).link ?? null,
+        source_url: extractSourceUrl(raw),
       };
 
       const validated = CreateEventSchema.safeParse(input);
@@ -185,9 +200,12 @@ export async function runIngest(
       : 0;
 
   // Haiku pricing: $0.10/M input, $0.50/M output
+  // Approximate 80% input / 20% output split
+  const inputTokens = Math.round(report.tokens_used * 0.8);
+  const outputTokens = report.tokens_used - inputTokens;
   report.cost_usd =
-    (report.tokens_used * 0.1) / 1_000_000 +
-    (report.tokens_used * 0.2 * 0.5) / 1_000_000;
+    (inputTokens * 0.1) / 1_000_000 +
+    (outputTokens * 0.5) / 1_000_000;
 
   await finaliseRun(runId, report);
   return report;
@@ -208,7 +226,7 @@ async function extractEvent(
       messages: [
         {
           role: "user",
-          content: EXTRACTION_PROMPT + JSON.stringify(raw, null, 2),
+          content: buildExtractionPrompt() + JSON.stringify(raw, null, 2),
         },
       ],
     });
@@ -222,8 +240,8 @@ async function extractEvent(
     const textBlock = response.content.find((b) => b.type === "text");
     const text = textBlock && "text" in textBlock ? textBlock.text : "";
 
-    // Parse JSON — handle potential markdown wrapping
-    const jsonStr = text.replace(/```json?\n?/g, "").replace(/```\n?/g, "").trim();
+    // Parse JSON — handle potential markdown wrapping or preamble text
+    const jsonStr = extractJson(text);
     const parsed = JSON.parse(jsonStr);
 
     // Fill in missing null fields for temporal
@@ -264,18 +282,44 @@ async function extractEvent(
 }
 
 /**
+ * Extract the best available source URL from raw event data.
+ * Different sources store links in different fields.
+ */
+function extractSourceUrl(raw: Record<string, unknown>): string | null {
+  // Top-level link (Eventbrite, Facebook)
+  if (typeof (raw as { link?: unknown }).link === "string") {
+    return (raw as { link: string }).link;
+  }
+  // Google Events: ticket_info[].link
+  const ticketInfo = (raw as { ticket_info?: { link?: string }[] }).ticket_info;
+  if (Array.isArray(ticketInfo)) {
+    const ticket = ticketInfo.find((t) => typeof t.link === "string");
+    if (ticket?.link) return ticket.link;
+  }
+  // Google Events: venue.link
+  const venue = (raw as { venue?: { link?: string } }).venue;
+  if (typeof venue?.link === "string") return venue.link;
+  // Quicket, TripAdvisor: url field
+  if (typeof (raw as { url?: unknown }).url === "string") {
+    return (raw as { url: string }).url;
+  }
+  return null;
+}
+
+/**
  * Ensure temporal output has all required null fields for each type.
  */
 function normaliseTemporalOutput(
   raw: Record<string, unknown>
 ): CreateEventInput["temporal"] {
   const type = raw?.type as string;
+  const today = new Date().toISOString().slice(0, 10);
 
   switch (type) {
     case "point":
       return {
         type: "point",
-        start_date: raw.start_date as string,
+        start_date: (raw.start_date as string) ?? today,
         end_date: null,
         start_month: null,
         end_month: null,
@@ -285,8 +329,8 @@ function normaliseTemporalOutput(
     case "range":
       return {
         type: "range",
-        start_date: raw.start_date as string,
-        end_date: raw.end_date as string,
+        start_date: (raw.start_date as string) ?? today,
+        end_date: (raw.end_date as string) ?? (raw.start_date as string) ?? today,
         start_month: null,
         end_month: null,
         recurrence: null,
@@ -328,7 +372,7 @@ function normaliseTemporalOutput(
       // Default to point if unknown
       return {
         type: "point",
-        start_date: (raw.start_date as string) ?? new Date().toISOString().slice(0, 10),
+        start_date: (raw.start_date as string) ?? today,
         end_date: null,
         start_month: null,
         end_month: null,
@@ -439,7 +483,14 @@ async function finaliseRun(
     .update(ingestRuns)
     .set({
       completed_at: new Date(),
-      status: report.errors.length > 0 && report.events_created === 0 ? "failed" : "completed",
+      status:
+        report.errors.length > 0 &&
+        report.events_created === 0 &&
+        report.events_updated === 0
+          ? report.events_found === 0
+            ? "failed"       // Pipeline error — nothing fetched
+            : "completed"    // Events found but all skipped/invalid
+          : "completed",
       events_found: report.events_found,
       events_created: report.events_created,
       events_updated: report.events_updated,
