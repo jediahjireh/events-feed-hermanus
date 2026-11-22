@@ -31,7 +31,7 @@ Both environments connect to the same Neon database — writes from either URL a
 
 ## Testing with Claude / Codex
 
-The API is agent-friendly. Paste the prompt below into any Claude or Codex session for a full end-to-end verification. The same 19 checks are also available in the browser at `/admin` > E2E Tests tab. A standalone copy of this prompt lives at [quick-test-prompt.md](quick-test-prompt.md) for easy sharing.
+The API is agent-friendly. Paste the prompt from the [reviewer guide](reviewer-guide.md#quick-test-prompt) into any Claude or Codex session for a full end-to-end verification. The same checks are also available in the browser at `/admin` > E2E Tests tab (19 checks including CRUD).
 
 ### Full E2E test prompt
 

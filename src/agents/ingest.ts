@@ -48,6 +48,13 @@ Explain your temporal classification in one sentence in a "reasoning" field.
 
 If you're not confident about any field, set it to null — except start_date for point/range events, which must always be a YYYY-MM-DD string. Set confidence to a number between 0 and 1 based on how complete and unambiguous the source data is.
 
+REQUIRED FIELDS — these must NEVER be empty arrays:
+- categories: pick ALL that apply from ["music", "market", "wildlife", "art", "sport", "food-wine", "family"]. At least one is required. Infer from the event title, description, and type if not explicit.
+- suitable_for: pick ALL that apply from ["couples", "families", "adventure", "luxury", "solo"]. At least one is required. Infer from the event type (e.g. a wine tasting → couples, luxury; a market → families, couples, solo).
+
+EVENT LINKS — extract any direct links to the event's own page:
+- website: the event's own URL, organiser page, or ticket purchase link. Look in the raw data for fields like link, url, ticket_info, website. This is different from the source page we scraped from.
+
 Schema:
 {
   "title": "string",
@@ -77,9 +84,10 @@ Schema:
     "dates": ["YYYY-MM-DD", ...] | null
   },
   "categories": ["music", "market", "wildlife", "art", "sport", "food-wine", "family"],
+  "suitable_for": ["couples", "families", "adventure", "luxury", "solo"],
   "confidence": 0.0-1.0,
   "price_indication": "string | null (e.g. 'free', 'R50-R200')",
-  "suitable_for": ["couples", "families", "adventure", "luxury", "solo"],
+  "website": "string | null (direct link to the event page or ticket purchase)",
   "reasoning": "string (one sentence explaining temporal classification)"
 }
 
@@ -262,16 +270,20 @@ async function extractEvent(
         radius_km: null,
       },
       temporal,
-      categories: parsed.categories ?? [],
+      categories: Array.isArray(parsed.categories) && parsed.categories.length > 0
+        ? parsed.categories
+        : ["family"], // Default fallback — every event is at least family-friendly
       source_id: "", // Set by caller
       source_url: null,
       confidence: typeof parsed.confidence === "number" ? parsed.confidence : 0.5,
       relevance_score: 0.5,
       status: "active",
-      links: null,
+      links: parsed.website ? { website: parsed.website } : null,
       images: [],
       price_indication: parsed.price_indication ?? null,
-      suitable_for: parsed.suitable_for ?? [],
+      suitable_for: Array.isArray(parsed.suitable_for) && parsed.suitable_for.length > 0
+        ? parsed.suitable_for
+        : ["solo"], // Default fallback — any event works for solo visitors
       reasoning: parsed.reasoning,
     };
   } catch (err) {
@@ -302,6 +314,10 @@ function extractSourceUrl(raw: Record<string, unknown>): string | null {
   // Quicket, TripAdvisor: url field
   if (typeof (raw as { url?: unknown }).url === "string") {
     return (raw as { url: string }).url;
+  }
+  // Quicket: sourceUrl field (alternative)
+  if (typeof (raw as { sourceUrl?: unknown }).sourceUrl === "string") {
+    return (raw as { sourceUrl: string }).sourceUrl;
   }
   return null;
 }
@@ -448,10 +464,30 @@ async function updateExistingEvent(
     1
   );
 
+  // Merge categories and suitable_for from new source (union, not replace)
+  const currentCategories = current.categories ?? [];
+  const currentSuitableFor = current.suitable_for ?? [];
+  const mergedCategories = [
+    ...new Set([...currentCategories, ...data.categories]),
+  ];
+  const mergedSuitableFor = [
+    ...new Set([...currentSuitableFor, ...data.suitable_for]),
+  ];
+
+  // Merge links — keep existing, add new
+  const mergedLinks =
+    current.links || data.links
+      ? { ...(current.links as Record<string, string> | null), ...(data.links as Record<string, string> | null) }
+      : null;
+
   const [updated] = await db
     .update(events)
     .set({
       description: data.description ?? current.description,
+      source_url: current.source_url ?? data.source_url,
+      categories: mergedCategories,
+      suitable_for: mergedSuitableFor,
+      links: mergedLinks,
       confidence: boostedConfidence,
       updated_at: now,
       last_verified_at: now,
@@ -470,6 +506,12 @@ async function updateExistingEvent(
       action: "updated_from_source",
       source_id: sourceId,
       confidence_boost: boostedConfidence - current.confidence,
+      categories_added: mergedCategories.filter(
+        (c) => !currentCategories.includes(c)
+      ),
+      suitable_for_added: mergedSuitableFor.filter(
+        (s) => !currentSuitableFor.includes(s)
+      ),
     },
     snapshot: { ...updated },
   });

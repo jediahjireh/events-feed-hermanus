@@ -333,6 +333,12 @@ Server components for read-only views, client components for interactive.
 > Executed: 2026-11-22
 > Notes: 4 tabs: Health Overview (source cards, event stats), Ingest Panel (source picker + trigger + run history with auto-refresh), Review Panel (scope picker + trigger + results), E2E Test Runner (19 sequential checks exercising all 13 API endpoints live). The E2E runner is the crown jewel — it proves the system works, not just that it compiles.
 
+### 6.5 — Natural language date picker + season resolution
+
+> Status: done
+> Executed: 2026-11-22
+> Notes: Added chrono-node (NL date parsing), react-day-picker v10 (calendar), @radix-ui/react-popover (dropdown). Built `NaturalDatePicker` component: text input with live chrono-node parsing, calendar popover, season name detection. Built `season-dates.ts`: 6 Southern Hemisphere season definitions (summer Dec–Feb cross-year, autumn Mar–May, winter Jun–Aug, spring Sep–Nov, whale season Jun–Nov, festival season Sep–Oct). Features: forward-looking resolution, `notBefore` constraint (To picker respects From date), prefix overrides ("start of", "end of", "early", "late", "beginning of"), noon boundary normalization. Quick presets in filter bar for hand-worked test cases. 50 season-dates tests. Build: 0 errors. Tests: 175/175.
+
 ---
 
 ## Phase 7: Verification & Hardening
@@ -362,7 +368,7 @@ Fix all must-fix, should-fix, and doc-fix issues from the /verify audit.
 Run build + full test suite after to confirm no regressions.
 ```
 
-**What it produced:** 14 fixes applied across security (LLM output whitelist), correctness (cost calc, stale date, non-JSON crash), DRY (shared `extractJson`), accessibility (modal ARIA + Escape), dead code removal, and doc corrections. Build: 0 errors. Tests: 125/125 pass.
+**What it produced:** 14 fixes applied across security (LLM output whitelist), correctness (cost calc, stale date, non-JSON crash), DRY (shared `extractJson`), accessibility (modal ARIA + Escape), dead code removal, and doc corrections. Build: 0 errors. Tests: 125/125 pass (later 175/175 after Phase 6.5 season-dates tests).
 
 > Status: done
 > Executed: 2026-11-22

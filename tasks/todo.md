@@ -64,6 +64,31 @@ Session checkpoint and progress tracker. Updated during implementation.
 - [x] Re-verify — all clear
 - [x] **Checkpoint:** Clean codebase, no regressions
 
+## Phase 9: Natural Language Date Picker + Season Resolution
+
+- [x] Add chrono-node + react-day-picker + @radix-ui/react-popover
+- [x] Build `NaturalDatePicker` component (text input + calendar + chrono-node parsing)
+- [x] Wire into `FilterBar` with `role="start"`/`role="end"` and `minDate`/`maxDate` constraints
+- [x] Build `season-dates.ts` — Southern Hemisphere seasons (6 definitions, cross-year summer handling)
+- [x] Add `notBefore` constraint for From→To picker interaction
+- [x] Add prefix overrides ("start of", "end of", "early", "late", "beginning of")
+- [x] Fix noon boundary bug (time-of-day sensitivity in season date comparisons)
+- [x] Fix season hint persistence (useEffect overwriting season label)
+- [x] Add quick presets for hand-worked test cases
+- [x] 50 season-dates tests (findSeason, trySeasonParse, cross-year, notBefore, prefixes, noon normalization)
+- [x] **Checkpoint:** `pnpm build` 0 errors, 175/175 tests pass
+
+## Phase 10: Production Data Quality Fixes
+
+- [x] Health endpoint stale data — add `Cache-Control: no-store, no-cache, must-revalidate` headers
+- [x] Past event detection — add `markPastEvents()` to daily cron (point, range, recurring; skip seasonal)
+- [x] Extraction prompt — enforce categories + suitable_for (never empty), extract event website URLs
+- [x] Dedup merge — `updateExistingEvent` now merges categories, suitable_for, links (union, not replace)
+- [x] Version records — `markPastEvents` creates EventVersion per DESIGN.md contract
+- [x] Revert setTimeout stagger — broken on Vercel serverless, back to immediate fire-and-forget
+- [x] Add 2 new lessons (#24, #25): serverless setTimeout, version record contract
+- [x] **Checkpoint:** `pnpm build` 0 errors, 175/175 tests pass
+
 ## Final
 
 - [x] Run `/project:verify` — PASS (backend, pre-frontend)

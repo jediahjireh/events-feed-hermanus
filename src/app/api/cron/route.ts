@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { sources, ingestRuns } from "@/db/schema";
+import { events, eventVersions, sources, ingestRuns } from "@/db/schema";
+import { eq } from "drizzle-orm";
 import { ulid } from "ulid";
 import { executeIngest } from "@/lib/ingest-pipeline";
 import { runReview } from "@/agents/review";
@@ -43,6 +44,8 @@ export async function GET(request: NextRequest) {
       });
       runIds.push(runId);
 
+      // Fire-and-forget — starts HTTP request immediately.
+      // Cannot use setTimeout on Vercel serverless (context terminates after response).
       executeIngest(source.id, source.url, runId).catch((err) =>
         console.error(`Cron ingest [${source.id}] error:`, err)
       );
@@ -57,9 +60,13 @@ export async function GET(request: NextRequest) {
       review = report as unknown as Record<string, unknown>;
     }
 
+    // Mark past events (runs daily)
+    const pastCount = await markPastEvents();
+
     const result = {
       ingest: { sources_triggered: sourceRows.length, run_ids: runIds },
       review,
+      events_marked_past: pastCount,
       triggered_at: new Date().toISOString(),
     };
 
@@ -72,4 +79,68 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+/**
+ * Mark active events whose dates have fully passed as "past".
+ *
+ * Checks point (start_date), range (end_date), and recurring (end_date) events.
+ * Seasonal events are never marked past (they recur every year).
+ */
+async function markPastEvents(): Promise<number> {
+  const today = new Date().toISOString().slice(0, 10);
+
+  const activeEvents = await db
+    .select({ id: events.id, version: events.version, temporal: events.temporal })
+    .from(events)
+    .where(eq(events.status, "active"));
+
+  let count = 0;
+
+  for (const event of activeEvents) {
+    const t = event.temporal;
+    let isPast = false;
+
+    switch (t.type) {
+      case "point":
+        if (t.start_date < today) isPast = true;
+        break;
+      case "range":
+        if (t.end_date < today) isPast = true;
+        break;
+      case "recurring":
+        if (t.end_date && t.end_date < today) isPast = true;
+        break;
+      // Seasonal events recur every year — never auto-mark as past
+    }
+
+    if (isPast) {
+      const now = new Date();
+      const newVersion = event.version + 1;
+      const [updated] = await db
+        .update(events)
+        .set({ status: "past", updated_at: now, version: newVersion })
+        .where(eq(events.id, event.id))
+        .returning({ id: events.id });
+
+      if (updated) {
+        await db.insert(eventVersions).values({
+          id: ulid(),
+          event_id: updated.id,
+          version: newVersion,
+          changed_at: now,
+          changed_by: "cron",
+          diff: { action: "marked_past", previous_status: "active" },
+          snapshot: { id: updated.id, status: "past", temporal: t },
+        });
+      }
+      count++;
+    }
+  }
+
+  if (count > 0) {
+    console.log(`Cron: marked ${count} event(s) as past`);
+  }
+
+  return count;
 }

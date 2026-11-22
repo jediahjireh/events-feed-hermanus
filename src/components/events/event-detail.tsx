@@ -164,8 +164,8 @@ export function EventDetail({ event }: { event: Event }) {
             <p className="mt-0.5 font-medium">{event.price_indication}</p>
           </Card>
         )}
-        {event.links?.website && (
-          <a href={event.links.website} target="_blank" rel="noopener noreferrer">
+        {(event.links?.website || event.source_url) && (
+          <a href={event.links?.website || event.source_url!} target="_blank" rel="noopener noreferrer">
             <Button variant="outline" icon={ExternalLink}>Website</Button>
           </a>
         )}

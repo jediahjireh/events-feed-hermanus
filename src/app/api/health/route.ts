@@ -79,7 +79,12 @@ export async function GET() {
         },
         sources: lastIngests,
         timestamp: new Date().toISOString(),
-      })
+      }),
+      {
+        headers: {
+          "Cache-Control": "no-store, no-cache, must-revalidate",
+        },
+      }
     );
   } catch (error) {
     console.error("GET /api/health error:", error);
