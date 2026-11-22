@@ -6,6 +6,9 @@
  * rather than time-bound events. The Claude extraction agent classifies
  * these as "recurring" or "seasonal" temporal types as appropriate.
  *
+ * Uses both Attractions and Tours/Activities pages for broader coverage.
+ * Locals in Hermanus use TripAdvisor heavily for tourism activities.
+ *
  * Actor schema verified Nov 2026 against live API output.
  * Note: the includeRestaurants/includeHotels flags are unreliable when
  * using query mode — the actor may still return other types. We filter
@@ -67,6 +70,9 @@ export async function fetchTripAdvisorItems(): Promise<RawTripAdvisorItem[]> {
       startUrls: [
         {
           url: "https://www.tripadvisor.com/Attractions-g312755-Activities-Hermanus_Overstrand_Overberg_District_Western_Cape.html",
+        },
+        {
+          url: "https://www.tripadvisor.com/Attractions-g312755-Activities-c42-Hermanus_Overstrand_Overberg_District_Western_Cape.html",
         },
       ],
       maxItemsPerQuery: 50,

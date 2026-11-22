@@ -20,8 +20,8 @@ const db = drizzle({ client: sql, schema });
 const SOURCES = [
   {
     id: "google-events",
-    name: "Google Events (Apify)",
-    url: "https://apify.com/johnvc/google-events-api---access-google-events-data",
+    name: "Google Events (SerpAPI)",
+    url: "https://serpapi.com/google-events-api",
     trust_level: 0.8,
   },
   {
@@ -32,8 +32,8 @@ const SOURCES = [
   },
   {
     id: "eventbrite",
-    name: "Eventbrite (Apify)",
-    url: "https://apify.com/parseforge/eventbrite-scraper",
+    name: "Eventbrite (SerpAPI)",
+    url: "https://serpapi.com/eventbrite-search-api",
     trust_level: 0.8,
   },
   {
@@ -51,7 +51,7 @@ const SOURCES = [
   {
     id: "hermanus-co-za",
     name: "hermanus.co.za",
-    url: "https://www.hermanus.co.za/what-to-do/events-calendar/index.html",
+    url: "https://www.hermanus.co.za/what-to-do/annual-events/index.html",
     trust_level: 0.7,
   },
   {
@@ -182,12 +182,12 @@ const EVENTS: (typeof schema.events.$inferInsert)[] = [
     },
     categories: ["art", "music"],
     source_id: "hermanus-co-za",
-    source_url: "https://fynarts.co.za",
+    source_url: "https://www.hermanusfynarts.co.za",
     relevance_score: 0.88,
     confidence: 0.85,
     status: "active",
     links: {
-      website: "https://fynarts.co.za",
+      website: "https://www.hermanusfynarts.co.za",
     },
     images: [],
     price_indication: "varies per event",
@@ -367,6 +367,49 @@ const EVENTS: (typeof schema.events.$inferInsert)[] = [
     ingested_at: now,
     version: 1,
   },
+  {
+    id: ulid(),
+    title: "Hermanus Craft Gin & Jazz Evening",
+    slug: slugify("Hermanus Craft Gin & Jazz Evening"),
+    description:
+      "Live jazz and local craft gin tastings at the Harbour Square. Submitted by venue owner via manual entry.",
+    location: {
+      name: "Harbour Square",
+      venue: "Harbour Square",
+      town: "Hermanus",
+      region: "Overberg",
+      province: "Western Cape",
+      country: "ZA",
+      lat: -34.4149,
+      lng: 19.2487,
+      radius_km: null,
+    },
+    temporal: {
+      type: "point",
+      start_date: "2027-07-19",
+      end_date: null,
+      start_month: null,
+      end_month: null,
+      recurrence: null,
+      dates: null,
+    },
+    categories: ["music", "food-wine"],
+    source_id: "manual",
+    source_url: null,
+    relevance_score: 0.75,
+    confidence: 0.7,
+    status: "active",
+    links: {
+      website: "https://www.herbanusgin.co.za/events",
+    },
+    images: [],
+    price_indication: "R250 per person",
+    suitable_for: ["couples", "solo"],
+    created_at: now,
+    updated_at: now,
+    ingested_at: now,
+    version: 1,
+  },
 ];
 
 async function seed() {
@@ -402,7 +445,7 @@ async function seed() {
 
   // Summary
   console.log("Seed data summary:");
-  console.log("  Sources: google-events, facebook, eventbrite, tripadvisor, quicket, hermanus-co-za, manual");
+  console.log("  Sources: google-events, facebook, eventbrite, tripadvisor, quicket, hermanus-co-za, manual (3 events)");
   console.log("  Events:");
   for (const event of EVENTS) {
     console.log(
