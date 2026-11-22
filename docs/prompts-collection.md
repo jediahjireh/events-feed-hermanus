@@ -285,7 +285,9 @@ _Further corrections appended during the build:_
 - **[Haiku 5.5 thinking blocks]:** `response.content[0]` returns a `thinking` block, not `text`. All 3 extraction/review paths used `content[0]` and silently got empty strings. Fix: `response.content.find(b => b.type === "text")`. Caught during live testing, not unit tests.
 - **[Eventbrite titles lie about location]:** "in Cape Town, South Africa" in the title, but venue is Arabella Hotel in the Hermanus/Kleinmond area. Trust GPS coordinates over titles for location filtering.
 - **[Facebook rate-limited]:** `apify/facebook-events-scraper` hit Facebook's anonymous rate limits on 11/11 retries (Nov 2026). Kept adapter in place but expect frequent failures.
-- **20 total lessons** accumulated in `tasks/lessons.md` — real production patterns, not theoretical.
+- **[TripAdvisor returns locations, not events]:** SerpAPI TripAdvisor returns beaches, reserves, hotels — not just activities. Added two-layer filtering: adapter-level `place_type` + keyword exclusion, plus a REJECT instruction in the Claude extraction prompt as a safety net. Dropped the redundant "hermanus events" query (3→2 SerpAPI calls).
+- **[Cross-type dedup was blind to seasonal vs recurring]:** `temporalOverlap()` in `dedup.ts` had a blanket `return false` for any cross-type comparison involving seasonal events. A whale cruise listed as seasonal (Jun–Nov) from one source and recurring (daily) from another would never be detected as a duplicate — even with title similarity of 1.0. Fixed with `seasonalCompatibleWith()` and `recurrencesCompatible()` helpers. 9 new tests.
+- **22 total lessons** accumulated in `tasks/lessons.md` — real production patterns, not theoretical.
 
 ---
 
@@ -337,7 +339,7 @@ Server components for read-only views, client components for interactive.
 
 > Status: done
 > Executed: 2026-11-22
-> Notes: Added chrono-node (NL date parsing), react-day-picker v10 (calendar), @radix-ui/react-popover (dropdown). Built `NaturalDatePicker` component: text input with live chrono-node parsing, calendar popover, season name detection. Built `season-dates.ts`: 6 Southern Hemisphere season definitions (summer Dec–Feb cross-year, autumn Mar–May, winter Jun–Aug, spring Sep–Nov, whale season Jun–Nov, festival season Sep–Oct). Features: forward-looking resolution, `notBefore` constraint (To picker respects From date), prefix overrides ("start of", "end of", "early", "late", "beginning of"), noon boundary normalization. Quick presets in filter bar for hand-worked test cases. 50 season-dates tests. Build: 0 errors. Tests: 175/175.
+> Notes: Added chrono-node (NL date parsing), react-day-picker v10 (calendar), @radix-ui/react-popover (dropdown). Built `NaturalDatePicker` component: text input with live chrono-node parsing, calendar popover, season name detection. Built `season-dates.ts`: 6 Southern Hemisphere season definitions (summer Dec–Feb cross-year, autumn Mar–May, winter Jun–Aug, spring Sep–Nov, whale season Jun–Nov, festival season Sep–Oct). Features: forward-looking resolution, `notBefore` constraint (To picker respects From date), prefix overrides ("start of", "end of", "early", "late", "beginning of"), noon boundary normalization. Quick presets in filter bar for hand-worked test cases. 50 season-dates tests. Build: 0 errors. Tests: 184/184.
 
 ---
 
@@ -368,7 +370,7 @@ Fix all must-fix, should-fix, and doc-fix issues from the /verify audit.
 Run build + full test suite after to confirm no regressions.
 ```
 
-**What it produced:** 14 fixes applied across security (LLM output whitelist), correctness (cost calc, stale date, non-JSON crash), DRY (shared `extractJson`), accessibility (modal ARIA + Escape), dead code removal, and doc corrections. Build: 0 errors. Tests: 125/125 pass (later 175/175 after Phase 6.5 season-dates tests).
+**What it produced:** 14 fixes applied across security (LLM output whitelist), correctness (cost calc, stale date, non-JSON crash), DRY (shared `extractJson`), accessibility (modal ARIA + Escape), dead code removal, and doc corrections. Build: 0 errors. Tests: 125/125 pass (later 184/184 after Phase 6.5 season-dates tests).
 
 > Status: done
 > Executed: 2026-11-22

@@ -50,9 +50,9 @@ The 00:25–00:33 batch (9 commits in 8 min) was code built in the prior session
 | Build                                  | 15+ components, 3 pages (feed, detail, admin), Tailwind v4, responsive                                        | 10 min        | Directed component architecture, reviewed each page                 |
 | Build                                  | Admin panel: health overview, ingest/review triggers, E2E test runner (19 checks)                              | 10 min        | E2E runner exercises all 13 API endpoints live                      |
 | Verify                                 | Run /verify audit — found 20 issues across 4 severity levels                                                   | 5 min         | 3 must-fix (security, stale date, crash), 8 should-fix, 3 doc fixes |
-| Fix                                    | Apply all 14 code/doc fixes, regression test (175/175 pass, 0 build errors)                                    | 10 min        | Reviewed each fix for correctness, ran deep verification            |
+| Fix                                    | Apply all 14 code/doc fixes, regression test (184/184 pass, 0 build errors)                                    | 10 min        | Reviewed each fix for correctness, ran deep verification            |
 | Docs                                   | Update time/cost tracking, prompts-collection, talking points                                                  | 5 min         | This entry — demonstrating process, not just output                 |
-| Harden                                 | Production data quality fixes: markPastEvents, extraction prompts, dedup merge, version records                | 5 min         | Phase 10 — directed fixes, verified with 175/175 tests             |
+| Harden                                 | Production data quality fixes: markPastEvents, extraction prompts, dedup merge, version records                | 5 min         | Phase 10 — directed fixes, verified with 184/184 tests             |
 | Final audit                            | Numbers audit across all docs, /verify full codebase, reconcile figures                                        | 5 min         | Caught 11 stale numbers, 3 SHOULD-FIX code items                   |
 |                                        | **Session 3 subtotal**                                                                                         | **~55min**    |                                                                     |
 |                                        |                                                                                                                |               |                                                                     |
@@ -70,7 +70,7 @@ The 00:25–00:33 batch (9 commits in 8 min) was code built in the prior session
 2. The admin panel (ingest/review triggers, E2E test runner) proves the system works end-to-end
 3. The /verify audit caught a real security issue (unbounded LLM output in DB writes) — worth the extra time
 
-**The verification cycle is the key differentiator.** Running /verify → reviewing 20 findings → fixing 14 issues → re-verifying → confirming 175/175 tests pass. This is the opposite of "run Claude and ship" — it's iterative quality engineering with human judgement at every decision point.
+**The verification cycle is the key differentiator.** Running /verify → reviewing 20 findings → fixing 14 issues → re-verifying → confirming 184/184 tests pass. This is the opposite of "run Claude and ship" — it's iterative quality engineering with human judgement at every decision point.
 
 ## What "active time" means
 

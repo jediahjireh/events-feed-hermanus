@@ -201,14 +201,14 @@ Done.
 pnpm test
 ```
 
-Expected: **175 tests passing** across 7 test files.
+Expected: **184 tests passing** across 7 test files.
 
 ### Test files
 
 | File | Tests | What it covers |
 |---|---|---|
 | `tests/temporal.test.ts` | 34 | Overlap logic for all 4 temporal types (point, range, recurring, seasonal), `nextOccurrenceInRange`, edge cases (wrap-around months, exception dates) |
-| `tests/dedup.test.ts` | 16 | Fuzzy title matching, date proximity, venue matching, dedup threshold handling, non-duplicate detection |
+| `tests/dedup.test.ts` | 25 | Fuzzy title matching, date proximity, venue matching, dedup threshold handling, non-duplicate detection, cross-type temporal overlap (seasonal vs recurring, daily subsumes weekly, recurrence compatibility) |
 | `tests/hand-worked-cases.test.ts` | 36 | End-to-end acceptance tests from DESIGN.md Cases 1–4 — simulates the full API query pipeline (temporal overlap + category + suitable_for + confidence filters) against seed data |
 | `tests/relevance.test.ts` | 21 | Relevance agent scoring: category-profile matrix, multiple categories, suitable_for boost, edge cases, seed data scenarios |
 | `tests/ingest.test.ts` | 8 | Ingest agent pipeline: extraction of all 4 temporal types, markdown-wrapped JSON handling, invalid JSON errors, multi-event accumulation, cost calculation (mocked Anthropic + DB) |
@@ -748,7 +748,7 @@ main();
 "
 ```
 
-Expected: **20–70 attractions** (after dedup and Hermanus area filter). TripAdvisor data is *places/attractions*, not time-bound events — the Claude extraction agent classifies these as "recurring" or "seasonal". Uses SerpAPI `tripadvisor` engine with 3 parallel queries.
+Expected: **15–50 attractions** (after dedup, Hermanus area filter, and location filtering). TripAdvisor data is *places/attractions*, not time-bound events — the adapter filters by `place_type` (ATTRACTION and ATTRACTION_PRODUCT only) and excludes plain geographic locations via keyword matching. The Claude extraction agent then classifies surviving items as "recurring" or "seasonal", with a REJECT instruction for plain locations as a safety net. Uses SerpAPI `tripadvisor` engine with 2 parallel queries.
 
 ### Quicket (Apify)
 
@@ -797,7 +797,7 @@ This fetches the page, sends the HTML to Claude Haiku, and extracts structured e
 | Google Events | SerpAPI `google_events` | 0–5 | Sparse for Hermanus |
 | Facebook | Apify `apify/facebook-events-scraper` | 0–5 | Restricted since 2019, often empty |
 | Eventbrite | SerpAPI `eventbrite` | 0–10 | Filtered to Hermanus area |
-| TripAdvisor | SerpAPI `tripadvisor` | 20–70 | Attractions, not time-bound events |
+| TripAdvisor | SerpAPI `tripadvisor` | 15–50 | Attractions only (locations filtered out) |
 | Quicket | Apify `gtnetworks~sa-events-listings` | 1–10 | Most reliable for Hermanus |
 | hermanus.co.za | *(Claude scraper)* | 2–8 | Local tourism site |
 | manual | *(none)* | N/A | Manual submissions |
@@ -891,8 +891,8 @@ curl -s $BASE/api/health | jq '.data.events'
 | Eventbrite | ~$0.01 (SerpAPI) | ~$0.001 | ~$0.011 |
 | Google Events | ~$0.01 (SerpAPI) | ~$0.001 | ~$0.011 |
 | Facebook | ~$0.01 (Apify) | ~$0.001 | ~$0.011 |
-| TripAdvisor | ~$0.03 (SerpAPI, 3 queries) | ~$0.003 | ~$0.033 |
-| **Total (all 5)** | **~$0.07** | **~$0.007** | **~$0.077** |
+| TripAdvisor | ~$0.02 (SerpAPI, 2 queries) | ~$0.002 | ~$0.022 |
+| **Total (all 5)** | **~$0.06** | **~$0.006** | **~$0.066** |
 
 ---
 
@@ -1135,7 +1135,7 @@ Verify your `ANTHROPIC_API_KEY` is valid and has credits. The model used is `cla
 ```bash
 BASE=http://localhost:3000
 
-# 1. All 175 tests pass
+# 1. All 184 tests pass
 pnpm test
 
 # 2. Build is clean (13 API endpoints, 0 errors)

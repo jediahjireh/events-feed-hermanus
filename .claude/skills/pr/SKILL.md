@@ -64,7 +64,7 @@ Tick each line honestly, or write why it does not apply.
 ## How I verified it
 
 <!-- Commands run, tests added, what was checked. Example:
-- `pnpm test` — 175/175 pass
+- `pnpm test` — 184/184 pass
 - `pnpm build` — 0 errors, 14 routes
 - Tested on production: https://events-feed-hermanus.vercel.app
 - Ran `/project:verify` — all clear

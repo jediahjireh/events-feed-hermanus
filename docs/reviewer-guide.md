@@ -22,7 +22,7 @@ An event feed for Hermanus, South Africa. Collects events from 7 sources, normal
 
 - **Ingests** from Google Events, Facebook, Eventbrite, TripAdvisor, Quicket, hermanus.co.za, and manual submission
 - **Normalises** into 4 temporal types: point (single date), range (multi-day), recurring (weekly/monthly), seasonal (months, no dates)
-- **Deduplicates** with fuzzy title matching + temporal overlap + venue proximity
+- **Deduplicates** with fuzzy title matching + temporal overlap (including cross-type: seasonal vs recurring) + venue proximity
 - **Scores** confidence (source trust x extraction clarity) and relevance (traveller profile match)
 - **Versions** every change with full snapshot + diff audit trail
 - **Serves** 13 REST endpoints with filtering by date range, categories, traveller profile, confidence, and status
@@ -60,11 +60,11 @@ Review Agent (re-verify)  ←─────────────────
 | Metric | Value |
 |---|---|
 | API endpoints | 13 |
-| Tests | 175 (125 backend + 50 season-dates) |
+| Tests | 184 (134 backend + 50 season-dates) |
 | Frontend pages | 3 (feed, detail, admin) |
 | Event sources | 7 |
 | Temporal types | 4 (point, range, recurring, seasonal) |
-| Production lessons | 20 (in `tasks/lessons.md`) |
+| Production lessons | 22 (in `tasks/lessons.md`) |
 | Weekly run cost | ~$0.04 (all free tiers) |
 | Build time | ~2h 50min personal time |
 

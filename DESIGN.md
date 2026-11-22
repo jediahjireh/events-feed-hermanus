@@ -473,8 +473,8 @@ SerpAPI and Apify are the dominant costs at scale — SerpAPI for Google Events,
 
 ### Model choices rationale
 - **Haiku 5.5 for extraction/review:** $0.10/M input, $0.50/M output. 90% cheaper than Haiku 4.5. Structured extraction from HTML doesn't need reasoning — Haiku handles it at a fraction of a cent per page.
-- **Sonnet for design iteration:** Used during the design phase (this document), not in production.
-- **Opus for complex decisions only:** Not used in production. Overkill for this workload.
+- **Opus 4.6 for design and code generation:** Used interactively during design and build via Claude Code (Claude Max subscription). Never in production — cost would be prohibitive for batch extraction.
+- **Sonnet:** Not used. Haiku handles extraction, Opus handles design. No middle ground required for this workload.
 
 ---
 

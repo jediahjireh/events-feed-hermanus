@@ -60,7 +60,7 @@ Session checkpoint and progress tracker. Updated during implementation.
 
 - [x] Run `/project:verify` — 20 findings (3 must-fix, 8 should-fix, 3 doc fixes)
 - [x] Fix all 14 code/doc issues (security whitelist, stale date, non-JSON crash, dead code, accessibility, cost calc, docs)
-- [x] Regression test — 175/175 tests pass, `pnpm build` 0 errors
+- [x] Regression test — 184/184 tests pass, `pnpm build` 0 errors
 - [x] Re-verify — all clear
 - [x] **Checkpoint:** Clean codebase, no regressions
 
@@ -76,7 +76,7 @@ Session checkpoint and progress tracker. Updated during implementation.
 - [x] Fix season hint persistence (useEffect overwriting season label)
 - [x] Add quick presets for hand-worked test cases
 - [x] 50 season-dates tests (findSeason, trySeasonParse, cross-year, notBefore, prefixes, noon normalization)
-- [x] **Checkpoint:** `pnpm build` 0 errors, 175/175 tests pass
+- [x] **Checkpoint:** `pnpm build` 0 errors, 184/184 tests pass
 
 ## Phase 10: Production Data Quality Fixes
 
@@ -87,7 +87,7 @@ Session checkpoint and progress tracker. Updated during implementation.
 - [x] Version records — `markPastEvents` creates EventVersion per DESIGN.md contract
 - [x] Revert setTimeout stagger — broken on Vercel serverless, back to immediate fire-and-forget
 - [x] Add 2 new lessons (#19, #20): serverless setTimeout, version record contract
-- [x] **Checkpoint:** `pnpm build` 0 errors, 175/175 tests pass
+- [x] **Checkpoint:** `pnpm build` 0 errors, 184/184 tests pass
 
 ## Final
 

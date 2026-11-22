@@ -67,13 +67,19 @@ export function titleSimilarity(a: string, b: string): number {
 }
 
 /**
- * Check if two temporal objects overlap.
+ * Check if two temporal objects overlap for dedup purposes.
  * Uses simplified logic — not full travel-range overlap,
  * but whether the events cover the same time period.
+ *
+ * Handles cross-type comparisons: a seasonal event (Jun-Nov) from one source
+ * should match a recurring daily event from another source if they describe
+ * the same real-world thing. Title similarity is the primary dedup gate —
+ * temporal overlap just confirms they're in the same time window.
  */
 export function temporalOverlap(a: TemporalJson, b: TemporalJson): boolean {
-  // Same type is a strong signal
+  // Both seasonal — compare month ranges
   if (a.type === "seasonal" && b.type === "seasonal") {
+    if (a.start_month == null || a.end_month == null || b.start_month == null || b.end_month == null) return false;
     return monthRangesOverlap(
       a.start_month,
       a.end_month,
@@ -82,15 +88,21 @@ export function temporalOverlap(a: TemporalJson, b: TemporalJson): boolean {
     );
   }
 
+  // One seasonal, one not — cross-type check
+  if (a.type === "seasonal" || b.type === "seasonal") {
+    const seasonal = a.type === "seasonal" ? a : b;
+    const other = a.type === "seasonal" ? b : a;
+    return seasonalCompatibleWith(seasonal, other);
+  }
+
   // Extract date ranges for comparison
   const rangeA = extractDateRange(a);
   const rangeB = extractDateRange(b);
 
   if (!rangeA || !rangeB) {
-    // If we can't extract dates, check by type compatibility
-    if (a.type === "seasonal" || b.type === "seasonal") return false;
+    // Both recurring with no date bounds — check recurrence compatibility
     if (a.type === "recurring" && b.type === "recurring") {
-      return recurrencesMatch(a.recurrence!, b.recurrence!);
+      return recurrencesCompatible(a.recurrence!, b.recurrence!);
     }
     return false;
   }
@@ -189,15 +201,83 @@ function expandMonthRange(start: number, end: number): number[] {
   return months;
 }
 
-function recurrencesMatch(
+/**
+ * Check if a non-seasonal event falls within a seasonal event's month range.
+ * Handles cross-type dedup: "Hermanus Whale Cruises" as seasonal (Jun-Nov) from
+ * one source and recurring (daily) from another should be detected as duplicates.
+ */
+function seasonalCompatibleWith(
+  seasonal: TemporalJson,
+  other: TemporalJson
+): boolean {
+  if (seasonal.start_month == null || seasonal.end_month == null) return false;
+  const seasonalMonths = new Set(
+    expandMonthRange(seasonal.start_month, seasonal.end_month)
+  );
+
+  // Recurring with no bounds = year-round → always compatible
+  if (other.type === "recurring" && !other.start_date && !other.end_date) {
+    return true;
+  }
+
+  // Point: check if the event date's month falls in the seasonal range
+  if (other.type === "point" && other.start_date) {
+    const month = parseInt(other.start_date.split("-")[1], 10);
+    return seasonalMonths.has(month);
+  }
+
+  // Range: check if either endpoint's month falls in the seasonal range
+  if (other.type === "range" && other.start_date) {
+    const startMonth = parseInt(other.start_date.split("-")[1], 10);
+    const endMonth = other.end_date
+      ? parseInt(other.end_date.split("-")[1], 10)
+      : startMonth;
+    return seasonalMonths.has(startMonth) || seasonalMonths.has(endMonth);
+  }
+
+  // Recurring with bounds: check if the start month is in seasonal range
+  if (other.type === "recurring" && other.start_date) {
+    const startMonth = parseInt(other.start_date.split("-")[1], 10);
+    return seasonalMonths.has(startMonth);
+  }
+
+  return false;
+}
+
+/**
+ * Check if two recurrences are compatible for dedup purposes.
+ * More permissive than exact match: daily subsumes weekly/monthly
+ * (a daily event "contains" any weekly occurrence), and same
+ * day_of_week with compatible frequencies match.
+ */
+function recurrencesCompatible(
   a: NonNullable<TemporalJson["recurrence"]>,
   b: NonNullable<TemporalJson["recurrence"]>
 ): boolean {
-  return (
+  // Exact match
+  if (
     a.frequency === b.frequency &&
     a.day_of_week === b.day_of_week &&
     a.interval === b.interval
-  );
+  ) {
+    return true;
+  }
+
+  // Daily subsumes all frequencies (a daily event "contains" any weekly/monthly)
+  if (a.frequency === "daily" || b.frequency === "daily") {
+    return true;
+  }
+
+  // Weekly events on the same day
+  if (
+    a.frequency === "weekly" &&
+    b.frequency === "weekly" &&
+    a.day_of_week === b.day_of_week
+  ) {
+    return true;
+  }
+
+  return false;
 }
 
 /**
