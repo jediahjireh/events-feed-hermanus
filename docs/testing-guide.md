@@ -205,6 +205,7 @@ curl -sf "$BASE/api/events?status=cancelled" | jq -e '[.data[].title] | any(cont
 curl -sf "$BASE/api/schema" | jq -e '.openapi == "3.1.0"' && echo "6. Schema: PASS" || echo "6. Schema: FAIL"
 curl -sf "$BASE/api/sources" | jq -e '[.data[].id] | length == 7' && echo "7. Sources: PASS" || echo "7. Sources: FAIL"
 curl -sf -X POST "$BASE/api/review" -H 'Content-Type: application/json' -d '{"scope":"upcoming"}' | jq -e '.data | has("events_checked")' && echo "8. Review: PASS" || echo "8. Review: FAIL"
+curl -sf "$BASE/api/cron" 2>/dev/null; test $? -ne 0 && echo "9. Cron auth: PASS" || echo "9. Cron auth: FAIL"
 ```
 
 **Local dev** (requires `pnpm dev` running):
@@ -219,6 +220,7 @@ curl -sf "$BASE/api/events?status=cancelled" | jq -e '[.data[].title] | any(cont
 curl -sf "$BASE/api/schema" | jq -e '.openapi == "3.1.0"' && echo "6. Schema: PASS" || echo "6. Schema: FAIL"
 curl -sf "$BASE/api/sources" | jq -e '[.data[].id] | length == 7' && echo "7. Sources: PASS" || echo "7. Sources: FAIL"
 curl -sf -X POST "$BASE/api/review" -H 'Content-Type: application/json' -d '{"scope":"upcoming"}' | jq -e '.data | has("events_checked")' && echo "8. Review: PASS" || echo "8. Review: FAIL"
+curl -sf "$BASE/api/cron" 2>/dev/null; test $? -ne 0 && echo "9. Cron auth: PASS" || echo "9. Cron auth: FAIL"
 ```
 
 ---
@@ -723,6 +725,40 @@ curl -s -X POST $BASE/api/review \
 
 Returns 422 with `VALIDATION_ERROR`.
 
+### GET /api/cron — Vercel Cron handler
+
+Protected by `CRON_SECRET`. Called automatically by Vercel Cron daily at 06:00 UTC. Triggers ingest for all sources; on Mondays also runs the review agent.
+
+**Without valid secret (should return 401):**
+
+```bash
+curl -s $BASE/api/cron | jq .
+```
+
+Returns: `{ "errors": [{ "code": "UNAUTHORIZED", "message": "Invalid or missing cron secret" }] }`
+
+**With valid secret:**
+
+```bash
+curl -s -H "Authorization: Bearer $CRON_SECRET" $BASE/api/cron | jq .
+```
+
+Returns 200 with ingest run IDs and review results (if Monday). Example:
+
+```json
+{
+  "data": {
+    "ingest": { "sources_triggered": 7, "run_ids": ["01J..."] },
+    "review": { "skipped": true, "reason": "Not Monday" },
+    "triggered_at": "2026-11-22T06:00:00.000Z"
+  },
+  "meta": {},
+  "errors": []
+}
+```
+
+After deployment, check the Vercel dashboard under **Cron Jobs** to see execution history, status, and logs.
+
 ### GET /api/schema — OpenAPI spec
 
 ```bash
@@ -1123,7 +1159,7 @@ If a hand-worked case fails, the test output shows exactly which events were ret
 pnpm build
 ```
 
-Must complete with 0 errors and show all 10 routes. TypeScript errors will be caught here.
+Must complete with 0 errors and show all 11 routes. TypeScript errors will be caught here.
 
 ### "Model not found" or Anthropic API errors
 
@@ -1139,7 +1175,7 @@ BASE=http://localhost:3000
 # 1. All 125 tests pass
 pnpm test
 
-# 2. Build is clean (10 routes, 0 errors)
+# 2. Build is clean (11 routes, 0 errors)
 pnpm build
 
 # 3. Health check returns "healthy"

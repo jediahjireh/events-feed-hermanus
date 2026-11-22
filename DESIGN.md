@@ -154,7 +154,9 @@ DELETE /api/events/:id                       ← soft-delete (sets status to "ca
 GET  /api/sources                           ← list all configured sources
 POST /api/ingest                            ← trigger an ingestion run for a source
 GET  /api/ingest/runs                       ← history of ingestion runs with stats
+POST /api/review                            ← trigger a review pass on existing events
 
+GET  /api/cron                              ← Vercel Cron handler (daily ingest + weekly review)
 GET  /api/health                            ← system health + last successful ingest per source
 GET  /api/schema                            ← OpenAPI spec (for agent self-discovery)
 ```
