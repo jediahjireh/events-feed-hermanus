@@ -98,7 +98,8 @@ const EVENTS: (typeof schema.events.$inferInsert)[] = [
     confidence: 0.99,
     status: "active",
     links: {
-      website: "https://www.hermanus.co.za/whales",
+      website:
+        "https://www.hermanus.co.za/what-to-do/water-based/whale-watching/index.html",
     },
     images: [],
     price_indication: "free (land-based) / from R1200 (boat)",
@@ -445,11 +446,13 @@ async function seed() {
 
   // Summary
   console.log("Seed data summary:");
-  console.log("  Sources: google-events, facebook, eventbrite, tripadvisor, quicket, hermanus-co-za, manual (3 events)");
+  console.log(
+    "  Sources: google-events, facebook, eventbrite, tripadvisor, quicket, hermanus-co-za, manual (3 events)",
+  );
   console.log("  Events:");
   for (const event of EVENTS) {
     console.log(
-      `    - ${event.title} (${event.temporal.type}, confidence: ${event.confidence}, status: ${event.status})`
+      `    - ${event.title} (${event.temporal.type}, confidence: ${event.confidence}, status: ${event.status})`,
     );
   }
   console.log("\nDone.");

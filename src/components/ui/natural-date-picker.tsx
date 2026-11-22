@@ -5,6 +5,7 @@ import * as chrono from "chrono-node";
 import { Calendar as CalendarIcon, X } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import { trySeasonParse, getSeasonLabel } from "@/lib/season-dates";
 import { cn } from "@/lib/utils";
 
 /** Format a Date to "Mon DD, YYYY" using native Intl */
@@ -47,6 +48,8 @@ interface NaturalDatePickerProps {
   minDate?: Date;
   /** Maximum selectable date */
   maxDate?: Date;
+  /** Whether this picker is the start or end of a range (affects season resolution) */
+  role?: "start" | "end";
   /** Additional className for the wrapper */
   className?: string;
 }
@@ -58,6 +61,7 @@ export function NaturalDatePicker({
   label,
   minDate,
   maxDate,
+  role = "start",
   className,
 }: NaturalDatePickerProps) {
   const [open, setOpen] = useState(false);
@@ -78,7 +82,24 @@ export function NaturalDatePicker({
     }
   }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Parse natural language input and update the date
+  // Parse natural language input: try seasons first, then chrono-node.
+  // Seasons receive the notBefore constraint so "spring" in a To picker
+  // after "winter" in From correctly resolves to the right year.
+  const parseText = useCallback(
+    (text: string): Date | null => {
+      const trimmed = text.trim();
+      if (!trimmed) return null;
+
+      // Try season aliases first (chrono-node doesn't understand these)
+      const season = trySeasonParse(trimmed, role, undefined, minDate);
+      if (season) return season;
+
+      // Fall back to chrono-node for calendar-relative phrases
+      return chrono.parseDate(trimmed, new Date(), { forwardDate: true });
+    },
+    [role, minDate],
+  );
+
   const handleInputChange = useCallback(
     (text: string) => {
       setInputText(text);
@@ -88,7 +109,7 @@ export function NaturalDatePicker({
         return;
       }
 
-      const parsed = chrono.parseDate(text, new Date(), { forwardDate: true });
+      const parsed = parseText(text);
       if (parsed) {
         // Validate against min/max constraints
         if (minDate && parsed < minDate) return;
@@ -99,7 +120,7 @@ export function NaturalDatePicker({
       }
       // If not parseable yet, leave the current date untouched — user may still be typing
     },
-    [onChange, minDate, maxDate],
+    [onChange, minDate, maxDate, parseText],
   );
 
   // Handle calendar day selection
@@ -124,9 +145,7 @@ export function NaturalDatePicker({
       if (e.key === "Enter") {
         e.preventDefault();
         // Try parsing one more time on Enter
-        const parsed = chrono.parseDate(inputText, new Date(), {
-          forwardDate: true,
-        });
+        const parsed = parseText(inputText);
         if (parsed) {
           if (minDate && parsed < minDate) return;
           if (maxDate && parsed > maxDate) return;
@@ -139,7 +158,7 @@ export function NaturalDatePicker({
         setOpen(false);
       }
     },
-    [inputText, onChange, minDate, maxDate],
+    [inputText, onChange, minDate, maxDate, parseText],
   );
 
   // Clear the date
@@ -219,9 +238,14 @@ export function NaturalDatePicker({
                 )}
                 aria-label="Type a date in natural language"
               />
-              {inputText && !selectedDate && (
+              {inputText && !selectedDate && !getSeasonLabel(inputText) && (
                 <p className="mt-1 text-xs text-deep-forest/40">
-                  Try: &quot;tomorrow&quot;, &quot;next friday&quot;, &quot;jan 15&quot;
+                  Try: &quot;tomorrow&quot;, &quot;next friday&quot;, &quot;winter&quot;, &quot;whale season&quot;
+                </p>
+              )}
+              {getSeasonLabel(inputText) && selectedDate && (
+                <p className="mt-1 text-xs text-vibrant-leaf">
+                  {getSeasonLabel(inputText)} — {role === "start" ? "start" : "end"}
                 </p>
               )}
             </div>

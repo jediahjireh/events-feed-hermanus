@@ -95,7 +95,8 @@ export function FilterBar({
             value={filters.from ?? ""}
             onChange={(v) => onChange("from", v)}
             maxDate={toDate}
-            placeholder='e.g. "tomorrow"'
+            role="start"
+            placeholder='e.g. "tomorrow", "winter"'
             className="w-48"
           />
           <NaturalDatePicker
@@ -103,7 +104,8 @@ export function FilterBar({
             value={filters.to ?? ""}
             onChange={(v) => onChange("to", v)}
             minDate={fromDate}
-            placeholder='e.g. "next friday"'
+            role="end"
+            placeholder='e.g. "spring", "dec 25"'
             className="w-48"
           />
           <label className="text-sm font-medium">
