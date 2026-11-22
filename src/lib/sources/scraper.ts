@@ -85,7 +85,10 @@ export async function scrapeUrl(url: string): Promise<ScrapeResult> {
     );
   }
 
-  const html = await response.text();
+  // Decode as UTF-8 regardless of source charset to avoid mojibake
+  // (e.g. "Reën" appearing as "ReÃ«n" when ISO-8859-1 is mislabeled as UTF-8)
+  const buffer = await response.arrayBuffer();
+  const html = new TextDecoder("utf-8", { fatal: false }).decode(buffer);
 
   // Truncate HTML to avoid token limits (Haiku context: 200K tokens)
   // Rough estimate: 4 chars per token, limit to ~100K chars

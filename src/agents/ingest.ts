@@ -156,6 +156,7 @@ export async function runIngest(
         ...extracted,
         source_id: sourceId,
         source_url: extractSourceUrl(raw),
+        images: extractImageUrls(raw),
       };
 
       const validated = CreateEventSchema.safeParse(input);
@@ -278,7 +279,7 @@ async function extractEvent(
       confidence: typeof parsed.confidence === "number" ? parsed.confidence : 0.5,
       relevance_score: 0.5,
       status: "active",
-      links: parsed.website ? { website: parsed.website } : null,
+      links: parsed.website ? { website: normaliseUrl(parsed.website) } : null,
       images: [],
       price_indication: parsed.price_indication ?? null,
       suitable_for: Array.isArray(parsed.suitable_for) && parsed.suitable_for.length > 0
@@ -294,30 +295,76 @@ async function extractEvent(
 }
 
 /**
+ * Extract image URLs from raw event data.
+ * Different sources store images in different fields:
+ *   - TripAdvisor: image
+ *   - Facebook: imageUrl
+ *   - Eventbrite: image, thumbnail
+ *   - Quicket: imageUrl
+ *   - Google Events: thumbnail
+ */
+function extractImageUrls(raw: Record<string, unknown>): string[] {
+  const urls: string[] = [];
+  const r = raw as Record<string, unknown>;
+
+  // Primary image fields (full-size)
+  for (const field of ["image", "imageUrl"]) {
+    const val = r[field];
+    if (typeof val === "string" && val.startsWith("http")) {
+      urls.push(val);
+    }
+  }
+
+  // Thumbnail as fallback
+  if (typeof r.thumbnail === "string" && r.thumbnail.startsWith("http")) {
+    // Only add thumbnail if we don't already have a full image
+    if (urls.length === 0) {
+      urls.push(r.thumbnail);
+    }
+  }
+
+  return urls;
+}
+
+/**
+ * Normalise a URL by stripping common default-page suffixes
+ * (e.g. /index.html, /index.htm, /index.php) so stored links are clean.
+ */
+function normaliseUrl(url: string): string {
+  try {
+    const u = new URL(url);
+    u.pathname = u.pathname.replace(/\/index\.(html?|php|asp)$/i, "/");
+    return u.toString();
+  } catch {
+    return url;
+  }
+}
+
+/**
  * Extract the best available source URL from raw event data.
  * Different sources store links in different fields.
  */
 function extractSourceUrl(raw: Record<string, unknown>): string | null {
   // Top-level link (Eventbrite, Facebook)
   if (typeof (raw as { link?: unknown }).link === "string") {
-    return (raw as { link: string }).link;
+    return normaliseUrl((raw as { link: string }).link);
   }
   // Google Events: ticket_info[].link
   const ticketInfo = (raw as { ticket_info?: { link?: string }[] }).ticket_info;
   if (Array.isArray(ticketInfo)) {
     const ticket = ticketInfo.find((t) => typeof t.link === "string");
-    if (ticket?.link) return ticket.link;
+    if (ticket?.link) return normaliseUrl(ticket.link);
   }
   // Google Events: venue.link
   const venue = (raw as { venue?: { link?: string } }).venue;
-  if (typeof venue?.link === "string") return venue.link;
+  if (typeof venue?.link === "string") return normaliseUrl(venue.link);
   // Quicket, TripAdvisor: url field
   if (typeof (raw as { url?: unknown }).url === "string") {
-    return (raw as { url: string }).url;
+    return normaliseUrl((raw as { url: string }).url);
   }
   // Quicket: sourceUrl field (alternative)
   if (typeof (raw as { sourceUrl?: unknown }).sourceUrl === "string") {
-    return (raw as { sourceUrl: string }).sourceUrl;
+    return normaliseUrl((raw as { sourceUrl: string }).sourceUrl);
   }
   return null;
 }
@@ -480,6 +527,10 @@ async function updateExistingEvent(
       ? { ...(current.links as Record<string, string> | null), ...(data.links as Record<string, string> | null) }
       : null;
 
+  // Merge images — union of existing and new, dedup by URL
+  const currentImages = current.images ?? [];
+  const mergedImages = [...new Set([...currentImages, ...data.images])];
+
   const [updated] = await db
     .update(events)
     .set({
@@ -488,6 +539,7 @@ async function updateExistingEvent(
       categories: mergedCategories,
       suitable_for: mergedSuitableFor,
       links: mergedLinks,
+      images: mergedImages,
       confidence: boostedConfidence,
       updated_at: now,
       last_verified_at: now,

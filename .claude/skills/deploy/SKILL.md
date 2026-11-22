@@ -2,7 +2,7 @@
 name: deploy
 description: Deployment workflow for the event feed. Pre-deploy checks, staging verification, production deploy to Vercel, and post-deploy validation.
 user-invocable: true
-disable-model-invocation: true
+disable-model-invocation: false
 argument-hint: "[staging | production] [--skip-staging]"
 allowed-tools: [Read, Bash, Grep, Glob]
 ---

@@ -38,8 +38,8 @@ const SOURCES = [
   },
   {
     id: "tripadvisor",
-    name: "TripAdvisor (Apify)",
-    url: "https://apify.com/maxcopell/tripadvisor",
+    name: "TripAdvisor (SerpAPI)",
+    url: "https://serpapi.com/tripadvisor-search-api",
     trust_level: 0.75,
   },
   {
@@ -400,9 +400,7 @@ const EVENTS: (typeof schema.events.$inferInsert)[] = [
     relevance_score: 0.75,
     confidence: 0.7,
     status: "active",
-    links: {
-      website: "https://www.herbanusgin.co.za/events",
-    },
+    links: null,
     images: [],
     price_indication: "R250 per person",
     suitable_for: ["couples", "solo"],

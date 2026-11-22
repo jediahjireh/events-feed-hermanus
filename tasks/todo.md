@@ -36,7 +36,7 @@ Session checkpoint and progress tracker. Updated during implementation.
 
 ## Phase 5: Seed and Test
 
-- [x] Prompt 5.1 — Seed data (7 sources, 7 events, all 4 temporal types)
+- [x] Prompt 5.1 — Seed data (7 sources, 8 events, all 4 temporal types)
 - [x] Prompt 5.2 — Hand-worked case tests (36 tests, Cases 1-4 from DESIGN.md)
 - [x] **Checkpoint:** All hand-worked case tests pass (86/86 total)
 
@@ -60,7 +60,7 @@ Session checkpoint and progress tracker. Updated during implementation.
 
 - [x] Run `/project:verify` — 20 findings (3 must-fix, 8 should-fix, 3 doc fixes)
 - [x] Fix all 14 code/doc issues (security whitelist, stale date, non-JSON crash, dead code, accessibility, cost calc, docs)
-- [x] Regression test — 125/125 tests pass, `pnpm build` 0 errors
+- [x] Regression test — 175/175 tests pass, `pnpm build` 0 errors
 - [x] Re-verify — all clear
 - [x] **Checkpoint:** Clean codebase, no regressions
 
@@ -86,7 +86,7 @@ Session checkpoint and progress tracker. Updated during implementation.
 - [x] Dedup merge — `updateExistingEvent` now merges categories, suitable_for, links (union, not replace)
 - [x] Version records — `markPastEvents` creates EventVersion per DESIGN.md contract
 - [x] Revert setTimeout stagger — broken on Vercel serverless, back to immediate fire-and-forget
-- [x] Add 2 new lessons (#24, #25): serverless setTimeout, version record contract
+- [x] Add 2 new lessons (#19, #20): serverless setTimeout, version record contract
 - [x] **Checkpoint:** `pnpm build` 0 errors, 175/175 tests pass
 
 ## Final

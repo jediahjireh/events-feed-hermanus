@@ -2,7 +2,7 @@
 name: commit-plan
 description: Analyse staged and unstaged changes, group them into logical commits, and suggest commit messages. Does NOT commit — the user commits themselves.
 user-invocable: true
-disable-model-invocation: true
+disable-model-invocation: false
 argument-hint: "[scope or focus area]"
 allowed-tools: [Read, Bash, Grep, Glob]
 ---

@@ -2,7 +2,7 @@
 name: source-eval
 description: Evaluate a potential new event source for data quality, coverage, and integration effort. TRIGGER when considering adding a new data source.
 user-invocable: true
-disable-model-invocation: true
+disable-model-invocation: false
 argument-hint: "[url or source name]"
 ---
 
@@ -24,14 +24,14 @@ Evaluate whether a new event source is worth integrating. Produces a recommendat
 
 For 5 events visible on the page, extract manually and check:
 
-| Check | Pass/Fail |
-|---|---|
-| Event title clearly identifiable | |
-| Date/time parseable | |
-| Venue/location present | |
-| Description available | |
-| Temporal type classifiable (point/range/recurring/seasonal) | |
-| Data is current (not stale/outdated) | |
+| Check                                                       | Pass/Fail |
+| ----------------------------------------------------------- | --------- |
+| Event title clearly identifiable                            |           |
+| Date/time parseable                                         |           |
+| Venue/location present                                      |           |
+| Description available                                       |           |
+| Temporal type classifiable (point/range/recurring/seasonal) |           |
+| Data is current (not stale/outdated)                        |           |
 
 Score: X/6 per event, average across 5.
 
@@ -44,15 +44,15 @@ Score: X/6 per event, average across 5.
 
 ### 4. Estimate integration effort
 
-| Method | Effort | Reliability |
-|---|---|---|
-| API (documented) | Low | High |
-| RSS/iCal feed | Low | Medium |
-| WordPress REST API | Low | Medium |
-| Schema.org structured data | Medium | High |
-| Claude HTML extraction | Medium | Medium-High |
-| CSS selector scraping | Medium | Low (brittle) |
-| Manual curation | Low | High (but doesn't scale) |
+| Method                     | Effort | Reliability              |
+| -------------------------- | ------ | ------------------------ |
+| API (documented)           | Low    | High                     |
+| RSS/iCal feed              | Low    | Medium                   |
+| WordPress REST API         | Low    | Medium                   |
+| Schema.org structured data | Medium | High                     |
+| Claude HTML extraction     | Medium | Medium-High              |
+| CSS selector scraping      | Medium | Low (brittle)            |
+| Manual curation            | Low    | High (but doesn't scale) |
 
 ### 5. Output recommendation
 
@@ -79,7 +79,7 @@ Score: X/6 per event, average across 5.
 1. Google Events (SerpAPI `google_events` engine) — highest expected yield, confirmed reliable for Hermanus
 2. Facebook Events (Apify actor: `apify/facebook-events-scraper`) — public event pages (frequently rate-limited)
 3. Eventbrite (SerpAPI `eventbrite` engine) — ticketed events, location-based search with GPS filtering
-4. TripAdvisor (Apify actor: `maxcopell/tripadvisor`) — attractions and events
+4. TripAdvisor (SerpAPI `tripadvisor` engine) — attractions and events
 5. Quicket (Apify actor: `gtnetworks/sa-events-listings`) — SA ticketing platform
 6. hermanus.co.za — local tourism site
 7. ShowMe Hermanus (showme.co.za/hermanus/) — community directory
@@ -88,11 +88,13 @@ Score: X/6 per event, average across 5.
 ## Decision Rule
 
 Add a source if:
+
 - Data quality score >= 4/6, AND
 - It provides >= 3 events we don't already have, AND
 - Integration effort is low or medium
 
 Skip if:
+
 - Data quality score < 3/6, OR
 - All events duplicate what we already have, OR
 - Effort is high and yield is < 5 unique events

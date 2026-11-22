@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Play } from "lucide-react";
+import { Play, XCircle } from "lucide-react";
 import { useSources } from "@/hooks/use-sources";
-import { useIngestRuns, useTriggerIngest } from "@/hooks/use-ingest";
+import { useIngestRuns, useTriggerIngest, useCancelRun } from "@/hooks/use-ingest";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -34,6 +34,7 @@ export function IngestPanel() {
   const { data: sources = [], isLoading: loadingSources } = useSources();
   const { data: runs = [], isLoading: loadingRuns } = useIngestRuns(true);
   const triggerIngest = useTriggerIngest();
+  const cancelRun = useCancelRun();
 
   const inputClass =
     "mt-1 block w-full rounded-md border border-soft-sage bg-white px-3 py-1.5 text-sm shadow-sm focus:border-vibrant-leaf focus:outline-none focus:ring-1 focus:ring-vibrant-leaf";
@@ -102,7 +103,8 @@ export function IngestPanel() {
                   <th className="pb-2 pr-4">Found <InfoTip text="Raw events returned by the source adapter before dedup or validation." /></th>
                   <th className="pb-2 pr-4">Created <InfoTip text="New events added to the database (passed dedup + validation)." /></th>
                   <th className="pb-2 pr-4">Updated <InfoTip text="Existing events that matched a duplicate and had their confidence boosted." /></th>
-                  <th className="pb-2">Error</th>
+                  <th className="pb-2 pr-4">Error</th>
+                  <th className="pb-2"></th>
                 </tr>
               </thead>
               <tbody>
@@ -119,7 +121,21 @@ export function IngestPanel() {
                     <td className="py-2.5 pr-4 tabular-nums">{run.events_found}</td>
                     <td className="py-2.5 pr-4 tabular-nums">{run.events_created}</td>
                     <td className="py-2.5 pr-4 tabular-nums">{run.events_updated}</td>
-                    <td className="py-2.5 max-w-xs truncate text-xs text-red-600">{run.error_message}</td>
+                    <td className="py-2.5 pr-4 max-w-xs truncate text-xs text-red-600">{run.error_message}</td>
+                    <td className="py-2.5">
+                      {run.status === "running" && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          icon={XCircle}
+                          className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                          onClick={() => cancelRun.mutate(run.id)}
+                          disabled={cancelRun.isPending}
+                        >
+                          Cancel
+                        </Button>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>

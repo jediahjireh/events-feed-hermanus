@@ -98,7 +98,7 @@ describe("Case 1: Luxury couple, 14-21 Sep 2027", () => {
   });
 });
 
-// Let me fix the market test with a programmatic check
+// Market next occurrence — programmatic check for Saturday matching
 describe("Case 1 (corrected): Market next occurrence", () => {
   const travelStart = parseDate("2027-09-14");
   const travelEnd = parseDate("2027-09-21");

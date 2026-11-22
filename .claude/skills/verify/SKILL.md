@@ -2,7 +2,7 @@
 name: verify
 description: Verify that all changes from the current implementation are correct, complete, and production-ready. Run after /project:implement or any substantial coding session.
 user-invocable: true
-disable-model-invocation: true
+disable-model-invocation: false
 argument-hint: "[feature name or scope]"
 allowed-tools: [Read, Bash, Grep, Glob]
 ---

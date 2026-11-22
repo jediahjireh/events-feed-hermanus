@@ -1,13 +1,13 @@
 "use client";
 
-import { Suspense, useCallback } from "react";
+import { Suspense, useCallback, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEvents } from "@/hooks/use-events";
 import { FilterBar } from "@/components/events/filter-bar";
 import { EventCard, EventCardSkeleton } from "@/components/events/event-card";
 import { PaginationControls } from "@/components/ui/pagination-controls";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertCircle, RefreshCw } from "lucide-react";
+import { AlertCircle, RefreshCw, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -24,7 +24,7 @@ function EventsFeed() {
       page: String(page),
       per_page: String(PER_PAGE),
     };
-    for (const key of ["from", "to", "categories", "suitable_for", "source_id", "sort"]) {
+    for (const key of ["q", "from", "to", "categories", "suitable_for", "source_id", "sort"]) {
       const val = searchParams.get(key);
       if (val) params[key] = val;
     }
@@ -60,10 +60,29 @@ function EventsFeed() {
   }
 
   const filters: Record<string, string> = {};
-  for (const key of ["from", "to", "categories", "suitable_for", "source_id", "sort"]) {
+  for (const key of ["q", "from", "to", "categories", "suitable_for", "source_id", "sort"]) {
     const val = searchParams.get(key);
     if (val) filters[key] = val;
   }
+
+  // Local search input state — synced with URL param, debounced
+  const [searchInput, setSearchInput] = useState(filters.q ?? "");
+
+  // Keep local state in sync when URL changes externally (e.g. clear filters)
+  useEffect(() => {
+    setSearchInput(filters.q ?? "");
+  }, [filters.q]);
+
+  // Debounce search to avoid excessive API calls
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchInput !== (filters.q ?? "")) {
+        setFilter("q", searchInput);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchInput]);
 
   const events = data?.ok ? data.data : [];
   const totalCount = data?.ok ? (data.meta.total_count ?? 0) : 0;
@@ -78,6 +97,25 @@ function EventsFeed() {
         <p className="mt-1 text-deep-forest/60">
           Discover local events, festivals, and activities in Hermanus, South Africa.
         </p>
+      </div>
+
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-deep-forest/40" />
+        <input
+          type="text"
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          placeholder="Search events..."
+          className="w-full rounded-lg border border-soft-sage bg-white py-2.5 pl-10 pr-10 text-sm shadow-sm placeholder:text-deep-forest/40 focus:border-vibrant-leaf focus:outline-none focus:ring-1 focus:ring-vibrant-leaf"
+        />
+        {searchInput && (
+          <button
+            onClick={() => { setSearchInput(""); setFilter("q", ""); }}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-deep-forest/40 hover:text-deep-forest"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
       </div>
 
       <FilterBar filters={filters} onChange={setFilter} onBatchChange={setBatchFilters} />

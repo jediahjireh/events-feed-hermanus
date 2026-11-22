@@ -2,7 +2,7 @@
 name: security-check
 description: OWASP Top 10 security audit. Scans for hardcoded secrets, insecure storage, network security, dependency vulnerabilities, and web-specific issues.
 user-invocable: true
-disable-model-invocation: true
+disable-model-invocation: false
 argument-hint: "[--quick | --full] [specific area]"
 allowed-tools: [Read, Bash, Grep, Glob]
 ---
@@ -29,15 +29,16 @@ Security analysis based on OWASP Top 10 (Web), adapted for this Next.js + Postgr
 
 Search across all source directories for:
 
-| Pattern | Description | Severity |
-|---------|-------------|----------|
-| `sk-ant-*` | Anthropic API keys | CRITICAL |
-| `apify_api_*` / long alphanumeric assigned to API key vars | Apify API keys | CRITICAL |
-| `Bearer ` + token literal | Hardcoded auth tokens | CRITICAL |
-| Long alphanumeric strings (32+ chars) assigned to `apiKey`, `secret`, `token`, `password` | Generic secrets | HIGH |
-| `.env` values pasted inline in source | Environment variables in code | HIGH |
+| Pattern                                                                                   | Description                   | Severity |
+| ----------------------------------------------------------------------------------------- | ----------------------------- | -------- |
+| `sk-ant-*`                                                                                | Anthropic API keys            | CRITICAL |
+| `apify_api_*` / long alphanumeric assigned to API key vars                                | Apify API keys                | CRITICAL |
+| `Bearer ` + token literal                                                                 | Hardcoded auth tokens         | CRITICAL |
+| Long alphanumeric strings (32+ chars) assigned to `apiKey`, `secret`, `token`, `password` | Generic secrets               | HIGH     |
+| `.env` values pasted inline in source                                                     | Environment variables in code | HIGH     |
 
 **Exceptions** (not flagged):
+
 - Values loaded via `process.env.*`
 - Files: `.env`, `.env.example`
 - Pattern names in comments explaining formats
@@ -62,6 +63,7 @@ Check for:
 ## Step 4: Dependency Audit
 
 Run `pnpm audit` and flag:
+
 - Dependencies with known CVEs
 - Severely outdated packages (2+ major versions behind)
 - Packages with no recent maintenance (last publish > 1 year)

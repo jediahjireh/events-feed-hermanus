@@ -103,10 +103,19 @@ function isHermanusArea(event: RawEventbriteEvent): boolean {
  * We additionally filter by GPS + text to keep only truly local events.
  */
 export async function fetchEventbriteEvents(): Promise<RawEventbriteEvent[]> {
+  // Fetch events up to 18 months out (travel planners book 6–18 months ahead)
+  const today = new Date();
+  const horizon = new Date(today);
+  horizon.setMonth(horizon.getMonth() + 18);
+  const startDate = today.toISOString().slice(0, 10);
+  const endDate = horizon.toISOString().slice(0, 10);
+
   return fetchSerpApi<RawEventbriteEvent>(
     "eventbrite",
     {
       location: "Hermanus, Western Cape, South Africa",
+      start_date: startDate,
+      end_date: endDate,
     },
     (body) => (body.events_results as RawEventbriteEvent[]) ?? [],
     undefined,

@@ -150,7 +150,7 @@ Plus 3 domain skills:
 Each skill needs YAML frontmatter, specific steps, and tracer bullets.
 ```
 
-**What it produced:** 9 skills in `.claude/skills/`, plus WORKFLOW.md and settings.json.
+**What it produced:** 10 skills in `.claude/skills/`, plus WORKFLOW.md and settings.json.
 
 ### 3.3 — Build prompts
 
@@ -251,13 +251,13 @@ Claude reads CLAUDE.md automatically, picks up the todo, reads each build prompt
 
 > Status: done
 > Executed: 2026-11-21
-> Notes: Seed script populates 4 sources + 7 events (all 4 temporal types). Test factories in tests/helpers/factories.ts. Hand-worked case tests (36 tests) verify Cases 1-4 from DESIGN.md: temporal overlap, query filtering, dedup, cancelled event handling. Tracer bullet: 86/86 tests pass.
+> Notes: Seed script populates 7 sources + 8 events (all 4 temporal types). Test factories in tests/helpers/factories.ts. Hand-worked case tests (36 tests) verify Cases 1-4 from DESIGN.md: temporal overlap, query filtering, dedup, cancelled event handling. Tracer bullet: 86/86 tests pass.
 
 ### 4.12 — OpenAPI spec + health check (Prompts 6.1 + 6.2)
 
 > Status: done
 > Executed: 2026-11-21
-> Notes: Full OpenAPI 3.1 spec at GET /api/schema covering all 9 endpoints with complete component schemas (Event, Temporal discriminated union, Location, Recurrence, Links, Source, IngestRun, EventVersion, HealthStatus). Health check already implemented in Phase 3 — verified against Prompt 6.2 requirements.
+> Notes: Full OpenAPI 3.1 spec at GET /api/schema covering all 13 endpoints with complete component schemas (Event, Temporal discriminated union, Location, Recurrence, Links, Source, IngestRun, EventVersion, HealthStatus). Health check already implemented in Phase 3 — verified against Prompt 6.2 requirements.
 
 ---
 

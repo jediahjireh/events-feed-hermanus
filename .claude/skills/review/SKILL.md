@@ -2,7 +2,7 @@
 name: review
 description: Verify existing events are still correct by re-checking sources. TRIGGER on schedule (weekly), on-demand, or when debugging data quality issues.
 user-invocable: true
-disable-model-invocation: true
+disable-model-invocation: false
 argument-hint: "[event-id | 'upcoming' | 'low-confidence' | 'all']"
 ---
 
@@ -44,6 +44,7 @@ For each event:
 ### 3. Report
 
 Output a review report:
+
 ```
 Review scope: upcoming (next 30 days)
 Events checked: 24
@@ -64,6 +65,7 @@ Cost: $0.002
 ### 4. Source health tracking
 
 If a source has >30% of its events unconfirmed in a single review run:
+
 - Lower the source's `trust_level` by 0.1.
 - Flag in the report: "Source {name} health degraded. {X}% of events unconfirmed. Consider manual check of source URL."
 

@@ -199,8 +199,8 @@ export const SEED_SOURCES = {
   },
   tripadvisor: {
     id: "tripadvisor",
-    name: "TripAdvisor (Apify)",
-    url: "https://apify.com/maxcopell/tripadvisor",
+    name: "TripAdvisor (SerpAPI)",
+    url: "https://serpapi.com/tripadvisor-search-api",
     trust_level: 0.75,
   },
   quicket: {

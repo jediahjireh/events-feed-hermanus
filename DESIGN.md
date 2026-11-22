@@ -4,7 +4,7 @@
 
 An event feed for Hermanus, South Africa that collects, normalises, and serves local events so travel agents and AI trip-planning agents can answer: *"What is on in Hermanus while my traveller is there?"*
 
-The system ingests events from a ranked set of sources (SerpAPI for Google Events and Eventbrite; Apify actors for Facebook Events, TripAdvisor, and Quicket; local tourism site scrapers; manual submission), normalises them into a unified temporal model that handles four event shapes (point-in-time, multi-date/running, far-future, seasonal), exposes an agent-friendly REST API, and uses Claude as an ingestion and relevance-scoring agent.
+The system ingests events from a ranked set of sources (SerpAPI for Google Events, Eventbrite, and TripAdvisor; Apify actors for Facebook Events and Quicket; local tourism site scrapers; manual submission), normalises them into a unified temporal model that handles four event shapes (point-in-time, multi-date/running, far-future, seasonal), exposes an agent-friendly REST API, and uses Claude as an ingestion and relevance-scoring agent.
 
 A travel planner books 6–18 months out and revisits the same destination months apart. The feed must carry events that far ahead, handle sparse data for a coastal town (~91K people in the broader urban area), and let agents filter by traveller profile (age, interests) without over-engineering a recommendation engine.
 
@@ -260,7 +260,7 @@ Three agents, each with a single job:
 | 2 | Facebook Events | Apify actor (Facebook Events Scraper) | Low (rate-limited) | ~$0.003/result |
 | 3 | Quicket | Apify actor (Quicket scraper) | Medium | ~$0.002/result |
 | 4 | Eventbrite | SerpAPI (`eventbrite` engine) | Medium | Free tier (250 searches/month) |
-| 5 | TripAdvisor | Apify actor (TripAdvisor Scraper) | Low-medium (tourist-facing events) | ~$0.003/result |
+| 5 | TripAdvisor | SerpAPI (`tripadvisor` engine) | Low-medium (tourist-facing events) | Free tier (250 searches/month) |
 | 6 | hermanus.co.za | Scrape (Haiku 5.5 extracts) | Medium | ~$0.01/run |
 | 7 | ShowMe Hermanus | Scrape (Haiku 5.5 extracts) | Medium | ~$0.01/run |
 | 8 | fynarts.co.za | Scrape (seasonal) | Low (but high-value) | ~$0.003/run |
@@ -268,7 +268,7 @@ Three agents, each with a single job:
 | 10 | SA-Venues | Scrape | Low-medium | ~$0.005/run |
 | 11 | Manual submission | Form/API | High (over time) | Free |
 
-**Why this order:** Google Events (via SerpAPI) aggregates what Google already indexes — the broadest net, confirmed reliable for Hermanus with 5-6 results per query. Facebook Events is the dominant event platform in SA, accessible via Apify actor (bypassing Facebook's restricted APIs), though frequently rate-limited. Quicket is South Africa's primary ticketing platform — if an event sells tickets, it's likely on Quicket. Eventbrite (via SerpAPI) covers professionally organised events with structured data including GPS coordinates. TripAdvisor (via Apify) surfaces tourist-facing activities and experiences. Local tourism sites fill the gap for community events. Manual submission is the long-term play for events no scraper can find (church fetes, pop-up dinners, wine farm events announced only via email newsletters). Hybrid strategy: SerpAPI for structured search APIs (Google Events, Eventbrite) where it returns reliable Hermanus results; Apify actors for social media scraping (Facebook, TripAdvisor, Quicket) where SerpAPI has no equivalent.
+**Why this order:** Google Events (via SerpAPI) aggregates what Google already indexes — the broadest net, confirmed reliable for Hermanus with 5-6 results per query. Facebook Events is the dominant event platform in SA, accessible via Apify actor (bypassing Facebook's restricted APIs), though frequently rate-limited. Quicket is South Africa's primary ticketing platform — if an event sells tickets, it's likely on Quicket. Eventbrite (via SerpAPI) covers professionally organised events with structured data including GPS coordinates. TripAdvisor (via SerpAPI) surfaces tourist-facing activities and experiences. Local tourism sites fill the gap for community events. Manual submission is the long-term play for events no scraper can find (church fetes, pop-up dinners, wine farm events announced only via email newsletters). Hybrid strategy: SerpAPI for structured search APIs (Google Events, Eventbrite, TripAdvisor) where it returns reliable Hermanus results; Apify actors for social media scraping (Facebook, Quicket) where SerpAPI has no equivalent.
 
 **What we won't get (the honest gap):** No combination of APIs and scrapers gives full coverage for a town of ~91K people. Informal community events, last-minute pop-ups, and wine farm email-only events will be missed. The manual submission form and local partnerships (tourism bureau, Hermanus Times newspaper) are essential for filling this gap. The system is designed to start sparse and improve as sources are added.
 
@@ -405,7 +405,7 @@ Three agents, each with a single job:
 |---|---|---|---|---|
 | 1 | Data model + DB schema (PostgreSQL) | Low | High | Nothing |
 | 2 | API endpoints (Next.js API routes) | Low | High | Step 1 |
-| 3 | Ingest agents — SerpAPI (Google Events, Eventbrite) + Apify (Facebook, TripAdvisor) | Medium (API response formats) | High (primary data sources) | Step 1, 2 |
+| 3 | Ingest agents — SerpAPI (Google Events, Eventbrite, TripAdvisor) + Apify (Facebook) | Medium (API response formats) | High (primary data sources) | Step 1, 2 |
 | 4 | Overlap query logic (the core algorithm) | Medium (recurrence math) | Critical | Step 1 |
 | 5 | Quicket (Apify) integration | Low (Apify actor API) | Medium | Step 1, 2 |
 | 6 | One scraper (hermanus.co.za) with Claude extraction | Medium (site structure) | Medium | Step 1, 2 |
@@ -430,7 +430,7 @@ Three agents, each with a single job:
 | ORM | Drizzle | Lightweight, type-safe, SQL-first. No magic. |
 | AI (extraction) | Claude Haiku 5.5 | Cheapest model that reliably extracts structured data from messy HTML. $0.10/M input, $0.50/M output. |
 | AI (relevance) | Claude Haiku 5.5 | Only for edge cases. Most relevance is rule-based. |
-| Event sources | SerpAPI (Google Events, Eventbrite) + Apify actors (Facebook Events, TripAdvisor, Quicket) + fetch + Claude for scraping | Hybrid approach: SerpAPI for reliable structured search APIs, Apify for social media scraping. |
+| Event sources | SerpAPI (Google Events, Eventbrite, TripAdvisor) + Apify actors (Facebook Events, Quicket) + fetch + Claude for scraping | Hybrid approach: SerpAPI for reliable structured search APIs, Apify for social media scraping. |
 | Scheduling | Vercel Cron (or simple setInterval in dev) | Trigger daily/weekly ingestion and review runs. |
 | Validation | Zod | Runtime schema validation on all ingest data. |
 | Deployment | Vercel ([live](https://events-feed-hermanus.vercel.app)) | Zero-config Next.js deployment. Free tier sufficient. |
@@ -444,7 +444,7 @@ Three agents, each with a single job:
 ### Build phase
 - Claude Opus/Sonnet (via Claude Code): included in Claude Max subscription — $0 marginal
 - SerpAPI (Google Events, Eventbrite): free tier (250 searches/month) — $0
-- Apify actors (Facebook, TripAdvisor, Quicket): free tier ($5/month platform credits) — $0
+- Apify actors (Facebook, Quicket): free tier ($5/month platform credits) — $0
 - Neon PostgreSQL: free tier — $0
 - Vercel: free tier — $0
 
@@ -452,7 +452,7 @@ Three agents, each with a single job:
 | Item | Volume | Cost |
 |---|---|---|
 | SerpAPI (Google Events + Eventbrite) | ~14 searches/week (~60/month, within 250/month free tier) | $0/week |
-| Apify actors (Facebook, TripAdvisor, Quicket) | ~100 results/week (~400/month, within $5/month free credits) | $0/week |
+| Apify actors (Facebook, Quicket) | ~100 results/week (~400/month, within $5/month free credits) | $0/week |
 | Claude Haiku 5.5 (ingestion) | ~50 pages, ~100K tokens total | ~$0.02/week |
 | Claude Haiku 5.5 (review) | ~30 events, ~60K tokens | ~$0.01/week |
 | Claude Haiku 5.5 (relevance) | ~10 queries, ~20K tokens | ~$0.005/week |
@@ -469,7 +469,7 @@ Three agents, each with a single job:
 | 50 | ~40K | $80 | $7.50 | **$88** |
 | 100 | ~80K | $160 | $15 | **$175** |
 
-SerpAPI and Apify are the dominant costs at scale — SerpAPI for Google Events and Eventbrite search queries, Apify for Facebook, TripAdvisor, and Quicket scraping. Both offer pay-per-use pricing with no plan tiers to jump between. Two API keys (SerpAPI + Apify) cover all five source adapters. Claude Haiku 5.5 at $0.10/M input tokens is essentially free for structured extraction workloads.
+SerpAPI and Apify are the dominant costs at scale — SerpAPI for Google Events, Eventbrite, and TripAdvisor search queries, Apify for Facebook and Quicket scraping. Both offer pay-per-use pricing with no plan tiers to jump between. Two API keys (SerpAPI + Apify) cover all five source adapters. Claude Haiku 5.5 at $0.10/M input tokens is essentially free for structured extraction workloads.
 
 ### Model choices rationale
 - **Haiku 5.5 for extraction/review:** $0.10/M input, $0.50/M output. 90% cheaper than Haiku 4.5. Structured extraction from HTML doesn't need reasoning — Haiku handles it at a fraction of a cent per page.

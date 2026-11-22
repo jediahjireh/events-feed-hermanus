@@ -31,48 +31,73 @@ Both environments connect to the same Neon database — writes from either URL a
 
 ## Testing with Claude / Codex
 
-The API is agent-friendly. Paste the prompt from the [reviewer guide](reviewer-guide.md#quick-test-prompt) into any Claude or Codex session for a full end-to-end verification. The same checks are also available in the browser at `/admin` > E2E Tests tab (19 checks including CRUD).
+The API is agent-friendly — designed so an AI travel planner can discover and use it without hand-holding. There are four ways to test, depending on your environment:
 
-### Full E2E test prompt
+| Method | Environment | What it covers |
+| --- | --- | --- |
+| **Natural language prompts** | Claude chat | Real use case — Claude plans a trip using the API |
+| **Structured 16-test prompt** | Claude chat | Systematic endpoint-by-endpoint verification |
+| **Admin panel E2E runner** | Browser | 19 checks including POST/PUT/DELETE, CRUD, review agent |
+| **Curl smoke tests** | Terminal | 9 quick checks, copy-paste |
 
-Paste this into a Claude session. It runs all checks (read-only + agents) and reports PASS/FAIL.
+### Natural language prompts (recommended for reviewers)
+
+These simulate the real use case: a travel planner asking Claude to find events for a client. Paste into any Claude chat. See the [reviewer guide](reviewer-guide.md#try-it--ask-claude-to-plan-a-trip) for three ready-to-use prompts covering a luxury couple, a family trip, and general exploration.
+
+### Structured 16-test prompt
+
+For systematic verification of every endpoint. Paste into any Claude chat. Claude uses web browsing (not curl) to fetch each endpoint and reports PASS/FAIL.
 
 ```text
-Run a full end-to-end test of the Hermanus Event Feed API at https://events-feed-hermanus.vercel.app. Test ALL of the following and report PASS/FAIL for each:
+You are testing a live REST API. Follow these instructions exactly.
 
-1. Health: GET /api/health → status "healthy", 5+ active events, 7 sources
-2. Schema: GET /api/schema → openapi "3.1.0", 10 paths
-3. Sources: GET /api/sources → 7 sources, pagination works (per_page=2)
-4. Events: GET /api/events → 5+ events, response has data/meta/errors shape
-5. Category filter: ?categories=wildlife → only wildlife events
-6. Confidence: default excludes <0.6, ?min_confidence=0 includes low-confidence
-7. Cancelled: default excludes cancelled, ?status=cancelled shows them
-8. Case 1 (DESIGN.md): ?from=2027-09-14&to=2027-09-21&suitable_for=couples,luxury → exactly Whale Watching, Country Market, Wine Tasting. NOT Whale Festival or FynArts
-9. Case 2: ?from=2027-06-01&to=2027-06-30&suitable_for=families → exactly Whale Watching, Country Market. NOT FynArts
-10. Case 4: Cancelled Beach Concert in cancelled list, absent from active
-11. Pagination: per_page=2 pages through all events, meta has total_count/has_more
-12. Sorting: sort=date, sort=confidence, sort=relevance all return results
-13. Relevance: ?suitable_for=luxury&sort=relevance → Wine Tasting in top 3
-14. Error handling: nonexistent event → 404, bad body → 422, reversed dates → 400, bad review JSON → 400, invalid scope → 422
-15. Cron auth: GET /api/cron without header → 401 UNAUTHORIZED
-16. Ingest runs: GET /api/ingest/runs → has data with run stats
-17. Review agent: POST /api/review with empty body → 200 with events_checked
-18. CRUD: create a test event (source_id=manual, start_date=2099-12-31), read it, update title (version=1), verify version conflict (reuse version=1 → 409), check versions trail, delete it, verify it's cancelled
-19. Manual submission: POST /api/events with source_id=manual, title="Claude Manual Test Event", temporal type=point start_date=2099-01-15, categories=["art"], suitable_for=["solo"], confidence=0.7. Verify 201 response with source_id=manual. Then delete it (DELETE /api/events/:id) and verify cancelled.
+IMPORTANT: Do NOT use curl, code execution, or the analysis tool. Use ONLY your web browsing to fetch each URL. Do NOT explore or investigate beyond what each test asks. Work through the 16 tests in order, one by one.
 
-Report a summary table. For any FAIL, show the actual vs expected result.
+Base URL: https://events-feed-hermanus.vercel.app
+
+For each test: fetch the URL with web browsing, read the JSON response, check the expected values, and report PASS or FAIL. The API returns JSON with { data, meta, errors } shape.
+
+1. Health: Fetch /api/health → PASS if status is "healthy", total_active >= 5, sources array has 7 entries
+2. Schema: Fetch /api/schema → PASS if openapi is "3.1.0", paths has 10 entries
+3. Sources: Fetch /api/sources?per_page=2 → PASS if data has 2 items, total_count >= 7, has_more is true
+4. Events: Fetch /api/events → PASS if response has data/meta/errors, total_count >= 5
+5. Category filter: Fetch /api/events?categories=wildlife → PASS if every event has "wildlife" in categories
+6. Confidence: Fetch /api/events then /api/events?min_confidence=0 → PASS if default all >= 0.6; min_confidence=0 returns equal or more
+7. Cancelled: Fetch /api/events then /api/events?status=cancelled → PASS if default has no cancelled; status=cancelled has 1+
+8. Case 1: Fetch /api/events?from=2027-09-14&to=2027-09-21&suitable_for=couples,luxury → PASS if includes Whale Watching, Country Market, Wine Tasting; NOT Whale Festival or FynArts
+9. Case 2: Fetch /api/events?from=2027-06-01&to=2027-06-30&suitable_for=families → PASS if includes Whale Watching, Country Market; NOT FynArts
+10. Case 4: Fetch /api/events?status=cancelled → PASS if Beach Concert appears in cancelled list
+11. Pagination: Fetch /api/events?per_page=2&page=1 then page=2 → PASS if page 1 has 2 items, has_more true, total_count same on both
+12. Sorting: Fetch /api/events?sort=date, sort=confidence, sort=relevance → PASS if all three return events
+13. Relevance: Fetch /api/events?suitable_for=luxury&sort=relevance → PASS if Wine Tasting in top 3
+14. Error handling: Fetch /api/events/nonexistent-id-99999 and /api/events?from=2027-12-31&to=2027-01-01 → PASS if both have non-empty errors array (look for "NOT_FOUND" and "INVALID_QUERY")
+15. Cron auth: Fetch /api/cron → PASS if response contains "UNAUTHORIZED" error
+16. Ingest runs: Fetch /api/ingest/runs → PASS if response has a data array
+
+After all 16 tests, output a summary table: #, Test Name, PASS/FAIL, Actual Values.
+Final line: "Total: X/16 PASS"
 ```
 
-For local dev, replace the URL with `http://localhost:3000`.
+**Note:** Tests 14-15 (error handling, cron auth) may show as UNVERIFIED — Claude's web browsing can't always read error response bodies. These are verified by the admin panel E2E runner and the curl smoke tests below.
 
-### Quick smoke test (9 checks, copy-paste)
+### Admin panel E2E runner (19 checks)
+
+Covers everything including POST/PUT/DELETE operations that Claude's web browsing can't perform:
+
+1. Go to [events-feed-hermanus.vercel.app/admin](https://events-feed-hermanus.vercel.app/admin)
+2. Click the **E2E Tests** tab
+3. Click **Run All** — 19 checks including CRUD lifecycle, manual submission, review agent, and error handling with exact HTTP status codes
+
+### Curl smoke tests (9 checks, terminal)
+
+For local dev, replace the URL with `http://localhost:3000`.
 
 ```bash
 BASE=https://events-feed-hermanus.vercel.app
 curl -sf $BASE/api/health | jq -e '.data.status == "healthy"' && echo "1. Health: PASS" || echo "1. Health: FAIL"
 curl -sf "$BASE/api/events" | jq -e '.meta.total_count >= 5' && echo "2. Events: PASS" || echo "2. Events: FAIL"
-curl -sf "$BASE/api/events?from=2027-09-14&to=2027-09-21&suitable_for=couples,luxury" | jq -e '[.data[].title] | length == 3' && echo "3. Case 1: PASS" || echo "3. Case 1: FAIL"
-curl -sf "$BASE/api/events?from=2027-06-01&to=2027-06-30&suitable_for=families" | jq -e '[.data[].title] | length == 2' && echo "4. Case 2: PASS" || echo "4. Case 2: FAIL"
+curl -sf "$BASE/api/events?from=2027-09-14&to=2027-09-21&suitable_for=couples,luxury" | jq -e '[.data[].title] | length >= 3' && echo "3. Case 1: PASS" || echo "3. Case 1: FAIL"
+curl -sf "$BASE/api/events?from=2027-06-01&to=2027-06-30&suitable_for=families" | jq -e '[.data[].title] | length >= 2' && echo "4. Case 2: PASS" || echo "4. Case 2: FAIL"
 curl -sf "$BASE/api/events?status=cancelled" | jq -e '[.data[].title] | any(contains("Cancelled"))' && echo "5. Cancelled: PASS" || echo "5. Cancelled: FAIL"
 curl -sf "$BASE/api/schema" | jq -e '.openapi == "3.1.0"' && echo "6. Schema: PASS" || echo "6. Schema: FAIL"
 curl -sf "$BASE/api/sources" | jq -e '[.data[].id] | length == 7' && echo "7. Sources: PASS" || echo "7. Sources: FAIL"
@@ -117,7 +142,7 @@ ANTHROPIC_API_KEY=sk-ant-...
 # SerpAPI (Google Events + Eventbrite search engines)
 SERPAPI_API_KEY=...
 
-# Apify (Facebook Events, TripAdvisor, Quicket actors)
+# Apify (Facebook Events, Quicket actors)
 APIFY_API_KEY=...
 ```
 
@@ -128,7 +153,7 @@ APIFY_API_KEY=...
 | `DATABASE_URL` | [neon.tech](https://neon.tech) — create a project, copy the connection string | 1 GB storage |
 | `ANTHROPIC_API_KEY` | [console.anthropic.com/settings/keys](https://console.anthropic.com/settings/keys) | Pay-as-you-go (Haiku is ~$0.002/page) |
 | `SERPAPI_API_KEY` | [serpapi.com/manage-api-key](https://serpapi.com/manage-api-key) | 250 searches/month |
-| `APIFY_API_KEY` | [console.apify.com/account/integrations](https://console.apify.com/account/integrations) | $5 free credit (Facebook, TripAdvisor, Quicket actors) |
+| `APIFY_API_KEY` | [console.apify.com/account/integrations](https://console.apify.com/account/integrations) | $5 free credit (Facebook, Quicket actors) |
 
 ### 3. Push the database schema
 
@@ -176,7 +201,7 @@ Done.
 pnpm test
 ```
 
-Expected: **125 tests passing** across 6 test files.
+Expected: **175 tests passing** across 7 test files.
 
 ### Test files
 
@@ -188,6 +213,7 @@ Expected: **125 tests passing** across 6 test files.
 | `tests/relevance.test.ts` | 21 | Relevance agent scoring: category-profile matrix, multiple categories, suitable_for boost, edge cases, seed data scenarios |
 | `tests/ingest.test.ts` | 8 | Ingest agent pipeline: extraction of all 4 temporal types, markdown-wrapped JSON handling, invalid JSON errors, multi-event accumulation, cost calculation (mocked Anthropic + DB) |
 | `tests/review.test.ts` | 10 | Review agent verification: event confirmation, cancellation detection, 404 handling, fetch errors, detail changes, links.source_url fallback, cost calculation (mocked Anthropic + DB + fetch) |
+| `tests/season-dates.test.ts` | 50 | Southern Hemisphere season resolution: `findSeason`, `trySeasonParse`, cross-year seasons, `notBefore` constraints, prefix overrides ("start of", "end of", "early", "late"), noon normalization |
 
 ### Run a specific test file
 
@@ -198,6 +224,7 @@ pnpm vitest run tests/hand-worked-cases.test.ts
 pnpm vitest run tests/relevance.test.ts
 pnpm vitest run tests/ingest.test.ts
 pnpm vitest run tests/review.test.ts
+pnpm vitest run tests/season-dates.test.ts
 ```
 
 ### Watch mode (re-runs on file changes)
@@ -250,7 +277,7 @@ Expected response (after seeding):
       { "source_id": "google-events", "source_name": "Google Events (SerpAPI)", "last_completed": null, "events_found": 0 },
       { "source_id": "facebook", "source_name": "Facebook Events (Apify)", "last_completed": null, "events_found": 0 },
       { "source_id": "eventbrite", "source_name": "Eventbrite (SerpAPI)", "last_completed": null, "events_found": 0 },
-      { "source_id": "tripadvisor", "source_name": "TripAdvisor (Apify)", "last_completed": null, "events_found": 0 },
+      { "source_id": "tripadvisor", "source_name": "TripAdvisor (SerpAPI)", "last_completed": null, "events_found": 0 },
       { "source_id": "quicket", "source_name": "Quicket (Apify)", "last_completed": null, "events_found": 0 },
       { "source_id": "hermanus-co-za", "source_name": "hermanus.co.za", "last_completed": null, "events_found": 0 },
       { "source_id": "manual", "source_name": "Manual Submission", "last_completed": null, "events_found": 0 }
@@ -640,7 +667,7 @@ curl -s "$BASE/api/schema" > openapi.json
 
 ## Source Adapter Testing
 
-Each source adapter can be tested independently. Google Events and Eventbrite require `SERPAPI_API_KEY`; Facebook, TripAdvisor, and Quicket require `APIFY_API_KEY` in `.env.local`.
+Each source adapter can be tested independently. Google Events, Eventbrite, and TripAdvisor require `SERPAPI_API_KEY`; Facebook and Quicket require `APIFY_API_KEY` in `.env.local`.
 
 > **Cost note:** SerpAPI searches use free tier credits (~250/month). Apify actor runs cost ~$0.01–0.02 per run. The first run for each actor takes 30–120 seconds; subsequent runs reuse cached datasets.
 >
@@ -704,7 +731,7 @@ main();
 
 Expected: **0–10 events** after Hermanus filter. The adapter searches via SerpAPI `eventbrite` engine with location `"Hermanus, Western Cape, South Africa"` and applies a GPS bounding box filter for the Hermanus area.
 
-### TripAdvisor (Apify)
+### TripAdvisor (SerpAPI)
 
 ```bash
 pnpm tsx -e "
@@ -714,14 +741,14 @@ async function main() {
   const items = await fetchTripAdvisorItems();
   console.log('Found', items.length, 'attractions');
   for (const item of items) {
-    console.log('-', item.name, '|', item.category, '|', item.rating);
+    console.log('-', item.title, '|', item.place_type, '|', item.location);
   }
 }
 main();
 "
 ```
 
-Expected: **0–20 attractions** (after filtering out restaurants/hotels). TripAdvisor data is *places/attractions*, not time-bound events — the Claude extraction agent classifies these as "recurring" or "seasonal". Actor: `maxcopell/tripadvisor`.
+Expected: **20–70 attractions** (after dedup and Hermanus area filter). TripAdvisor data is *places/attractions*, not time-bound events — the Claude extraction agent classifies these as "recurring" or "seasonal". Uses SerpAPI `tripadvisor` engine with 3 parallel queries.
 
 ### Quicket (Apify)
 
@@ -770,7 +797,7 @@ This fetches the page, sends the HTML to Claude Haiku, and extracts structured e
 | Google Events | SerpAPI `google_events` | 0–5 | Sparse for Hermanus |
 | Facebook | Apify `apify/facebook-events-scraper` | 0–5 | Restricted since 2019, often empty |
 | Eventbrite | SerpAPI `eventbrite` | 0–10 | Filtered to Hermanus area |
-| TripAdvisor | Apify `maxcopell/tripadvisor` | 0–20 | Attractions, not time-bound events |
+| TripAdvisor | SerpAPI `tripadvisor` | 20–70 | Attractions, not time-bound events |
 | Quicket | Apify `gtnetworks~sa-events-listings` | 1–10 | Most reliable for Hermanus |
 | hermanus.co.za | *(Claude scraper)* | 2–8 | Local tourism site |
 | manual | *(none)* | N/A | Manual submissions |
@@ -822,7 +849,7 @@ curl -s -X POST $BASE/api/ingest \
   -H 'Content-Type: application/json' \
   -d '{"source_id": "facebook"}'
 
-# 5. TripAdvisor — attractions/places, sparse after filtering
+# 5. TripAdvisor — attractions/places via SerpAPI
 curl -s -X POST $BASE/api/ingest \
   -H 'Content-Type: application/json' \
   -d '{"source_id": "tripadvisor"}'
@@ -858,14 +885,14 @@ curl -s $BASE/api/health | jq '.data.events'
 
 ### Expected cost per full ingestion cycle
 
-| Source | Apify cost | Haiku cost | Total |
+| Source | API cost | Haiku cost | Total |
 | --- | --- | --- | --- |
-| Quicket | ~$0.01 | ~$0.001 | ~$0.011 |
-| Eventbrite | ~$0.01 | ~$0.001 | ~$0.011 |
-| Google Events | ~$0.01 | ~$0.001 | ~$0.011 |
-| Facebook | ~$0.01 | ~$0.001 | ~$0.011 |
-| TripAdvisor | ~$0.01 | ~$0.001 | ~$0.011 |
-| **Total (all 5)** | **~$0.05** | **~$0.005** | **~$0.055** |
+| Quicket | ~$0.01 (Apify) | ~$0.001 | ~$0.011 |
+| Eventbrite | ~$0.01 (SerpAPI) | ~$0.001 | ~$0.011 |
+| Google Events | ~$0.01 (SerpAPI) | ~$0.001 | ~$0.011 |
+| Facebook | ~$0.01 (Apify) | ~$0.001 | ~$0.011 |
+| TripAdvisor | ~$0.03 (SerpAPI, 3 queries) | ~$0.003 | ~$0.033 |
+| **Total (all 5)** | **~$0.07** | **~$0.007** | **~$0.077** |
 
 ---
 
@@ -1059,7 +1086,7 @@ curl -s "$BASE/api/events?status=cancelled" | jq '.data[].title'
 
 ### "APIFY_API_KEY environment variable is not set"
 
-Your `.env.local` is missing the key, or the dev server didn't pick it up. Restart with `pnpm dev`. This key is used for Apify actors (Facebook, TripAdvisor, Quicket). Google Events and Eventbrite use SerpAPI instead (`SERPAPI_API_KEY`).
+Your `.env.local` is missing the key, or the dev server didn't pick it up. Restart with `pnpm dev`. This key is used for Apify actors (Facebook, Quicket). Google Events, Eventbrite, and TripAdvisor use SerpAPI instead (`SERPAPI_API_KEY`).
 
 ### "Apify run trigger failed: 404 Not Found"
 
@@ -1108,7 +1135,7 @@ Verify your `ANTHROPIC_API_KEY` is valid and has credits. The model used is `cla
 ```bash
 BASE=http://localhost:3000
 
-# 1. All 125 tests pass
+# 1. All 175 tests pass
 pnpm test
 
 # 2. Build is clean (13 API endpoints, 0 errors)

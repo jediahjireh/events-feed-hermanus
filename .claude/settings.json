@@ -6,12 +6,13 @@
       "Bash(git ls-tree:*)",
       "Bash(git ls-files:*)",
       "Bash(git mv:*)",
-      "Bash(npm test:*)",
-      "Bash(npm run lint:*)",
-      "Bash(npm run build:*)",
-      "Bash(npm audit:*)",
-      "Bash(npx drizzle-kit:*)",
-      "Bash(npx tsx:*)"
+      "Bash(pnpm test:*)",
+      "Bash(pnpm run lint:*)",
+      "Bash(pnpm run build:*)",
+      "Bash(pnpm audit:*)",
+      "Bash(pnpm drizzle-kit:*)",
+      "Bash(pnpm tsx:*)",
+      "Bash(pnpm vitest:*)"
     ]
   }
 }

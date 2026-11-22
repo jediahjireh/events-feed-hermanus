@@ -33,7 +33,7 @@ Built as a [Magic Safari founding engineer homework project](docs/homework/Magic
 | [docs/](docs/)         | Build prompts, prompt chain, web research references.                                      |
 | [tasks/](tasks/)       | Task management — todo tracking, lessons learned, feature briefs, fixes knowledge base.    |
 | [tracking/](tracking/) | Time and cost tracking for the build.                                                      |
-| [.claude/](/.claude/)  | Claude Code configuration — 9 skills, workflow reference, shared settings.                 |
+| [.claude/](/.claude/)  | Claude Code configuration — 10 skills, workflow reference, shared settings.                 |
 
 > **Note on binary files:** The pen-and-paper photos and homework PDF are committed for process visibility. In a production repo these would be gitignored or stored externally.
 

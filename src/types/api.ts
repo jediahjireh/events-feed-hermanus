@@ -34,6 +34,7 @@ export const PaginationSchema = z.object({
 
 export const EventQuerySchema = z
   .object({
+    q: z.string().optional(), // free-text search on title + description
     from: z.iso.date().optional(),
     to: z.iso.date().optional(),
     categories: z.string().optional(), // comma-separated

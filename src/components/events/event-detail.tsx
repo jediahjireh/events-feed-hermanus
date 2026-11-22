@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import { MapPin, Shield, ExternalLink, Ticket } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -63,6 +66,22 @@ function TemporalInfo({ temporal }: { temporal: Event["temporal"] }) {
   }
 }
 
+function HeroImage({ src, alt }: { src: string; alt: string }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) return null;
+  return (
+    <div className="relative w-full overflow-hidden rounded-xl bg-soft-sage/30">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={src}
+        alt={alt}
+        onError={() => setFailed(true)}
+        className="w-full max-h-80 object-cover"
+      />
+    </div>
+  );
+}
+
 const STATUS_VARIANTS: Record<string, "success" | "destructive" | "warning" | "muted"> = {
   active: "success",
   cancelled: "destructive",
@@ -71,12 +90,16 @@ const STATUS_VARIANTS: Record<string, "success" | "destructive" | "warning" | "m
 };
 
 export function EventDetail({ event }: { event: Event }) {
+  const heroImage = event.images?.[0];
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="text-3xl font-bold">{event.title}</h1>
         <Badge variant={STATUS_VARIANTS[event.status] ?? "muted"}>{event.status}</Badge>
       </div>
+
+      {heroImage && <HeroImage src={heroImage} alt={event.title} />}
 
       <Card className="bg-whisper-green/50 border-vibrant-leaf/20">
         <CardContent className="flex items-start gap-3 p-4">
@@ -157,23 +180,25 @@ export function EventDetail({ event }: { event: Event }) {
         )}
       </div>
 
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         {event.price_indication && (
           <Card className="px-4 py-3">
             <span className="text-xs font-semibold uppercase tracking-wide text-deep-forest/50">Price</span>
             <p className="mt-0.5 font-medium">{event.price_indication}</p>
           </Card>
         )}
-        {(event.links?.website || event.source_url) && (
-          <a href={event.links?.website || event.source_url!} target="_blank" rel="noopener noreferrer">
-            <Button variant="outline" icon={ExternalLink}>Website</Button>
-          </a>
-        )}
-        {event.links?.tickets && (
-          <a href={event.links.tickets} target="_blank" rel="noopener noreferrer">
-            <Button icon={Ticket}>Get Tickets</Button>
-          </a>
-        )}
+        <div className="ml-auto flex flex-wrap gap-3">
+          {(event.links?.website || event.source_url) && (
+            <a href={event.links?.website || event.source_url!} target="_blank" rel="noopener noreferrer">
+              <Button variant="outline" icon={ExternalLink}>Website</Button>
+            </a>
+          )}
+          {event.links?.tickets && (
+            <a href={event.links.tickets} target="_blank" rel="noopener noreferrer">
+              <Button icon={Ticket}>Get Tickets</Button>
+            </a>
+          )}
+        </div>
       </div>
 
       <div className="border-t border-soft-sage pt-4 text-xs text-deep-forest/40">

@@ -46,14 +46,14 @@ Research gathered during the design phase. Sources verified against live web whe
 
 ## Hermanus Event Sources
 
-Hybrid source strategy: SerpAPI for Google Events and Eventbrite (structured search APIs, reliable Hermanus results), Apify actors for Facebook, TripAdvisor, and Quicket (social media scraping / platforms without search APIs).
+Hybrid source strategy: SerpAPI for Google Events, Eventbrite, and TripAdvisor (structured search APIs, reliable Hermanus results), Apify actors for Facebook and Quicket (social media scraping / platforms without search APIs).
 
 | Source | Source ID | URL / API | Method | Expected yield |
 |---|---|---|---|---|
 | Google Events (SerpAPI) | `google-events` | [serpapi.com/google-events-api](https://serpapi.com/google-events-api) | SerpAPI `google_events` engine | Medium-high |
 | Facebook Events (Apify) | `facebook` | [apify/facebook-events-scraper](https://apify.com/apify/facebook-events-scraper) | Apify actor (rate-limited) | Low (unreliable) |
 | Eventbrite (SerpAPI) | `eventbrite` | [serpapi.com/eventbrite-search-api](https://serpapi.com/eventbrite-search-api) | SerpAPI `eventbrite` engine | Medium |
-| TripAdvisor (Apify) | `tripadvisor` | [maxcopell/tripadvisor](https://apify.com/maxcopell/tripadvisor) | Apify actor | Low-medium |
+| TripAdvisor (SerpAPI) | `tripadvisor` | [serpapi.com/tripadvisor-search-api](https://serpapi.com/tripadvisor-search-api) | SerpAPI `tripadvisor` engine | Medium |
 | Quicket (Apify) | `quicket` | [gtnetworks/sa-events-listings](https://apify.com/gtnetworks/sa-events-listings/api) | Apify actor | Medium |
 | hermanus.co.za | `hermanus-co-za` | hermanus.co.za | Scrape + Claude | Medium |
 | Manual Submission | `manual` | — | Manual entry | Low but high-quality |
@@ -64,6 +64,7 @@ Hybrid source strategy: SerpAPI for Google Events and Eventbrite (structured sea
 |---|---|---|
 | Google Events | [serpapi.com/google-events-api](https://serpapi.com/google-events-api) | Query: "Events in Hermanus". Returns structured event data with dates, venues, tickets. |
 | Eventbrite | [serpapi.com/eventbrite-search-api](https://serpapi.com/eventbrite-search-api) | Location: "Hermanus, Western Cape, South Africa". GPS bounding box filter applied client-side. |
+| TripAdvisor | [serpapi.com/tripadvisor-search-api](https://serpapi.com/tripadvisor-search-api) | 3 parallel queries: "hermanus things to do", "hermanus events", "hermanus whale watching tours". Deduped by place_id, filtered to Hermanus area. |
 | Meta Ad Library | [serpapi.com/meta-ad-library-api](https://serpapi.com/meta-ad-library-api) | Returns Facebook/Instagram/Messenger ads mentioning "hermanus" (435 results Nov 2026). Mostly business promotions, not events — low signal-to-noise for event extraction. Some ads contain event-like data (tour dates, seasonal activities). Potential future supplementary source if Facebook Events adapter remains unreliable. |
 
 ### Apify Actor References
@@ -71,7 +72,6 @@ Hybrid source strategy: SerpAPI for Google Events and Eventbrite (structured sea
 | Actor | URL | Notes |
 |---|---|---|
 | Facebook Events Scraper | [apify.com/apify/facebook-events-scraper](https://apify.com/apify/facebook-events-scraper) | Official Apify actor. Frequently rate-limited by Facebook (Nov 2026). |
-| TripAdvisor | [apify.com/maxcopell/tripadvisor](https://apify.com/maxcopell/tripadvisor) | Scrapes TripAdvisor attractions/events. |
 | SA Events Listings (Quicket) | [apify.com/gtnetworks/sa-events-listings](https://apify.com/gtnetworks/sa-events-listings/api) | Scrapes Quicket SA event listings. |
 
 ---

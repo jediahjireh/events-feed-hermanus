@@ -2,7 +2,7 @@
 name: implement
 description: Plan and build a feature, fix, or enhancement from a spec, requirement, or inline description. Handles planning, codebase research, implementation, and verification.
 user-invocable: true
-disable-model-invocation: true
+disable-model-invocation: false
 argument-hint: "<description or feature-brief reference>"
 ---
 

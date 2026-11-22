@@ -59,6 +59,15 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Free-text search on title + description
+    if (query.q) {
+      const terms = query.q.toLowerCase().split(/\s+/).filter(Boolean);
+      filtered = filtered.filter((row) => {
+        const haystack = `${row.title} ${row.description ?? ""}`.toLowerCase();
+        return terms.every((term) => haystack.includes(term));
+      });
+    }
+
     // Filter by source
     if (query.source_id) {
       filtered = filtered.filter((row) => row.source_id === query.source_id);

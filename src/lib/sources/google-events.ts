@@ -38,14 +38,31 @@ export type RawGoogleEvent = {
 
 /**
  * Fetch events from Google Events via SerpAPI.
- * Returns structured event data for Hermanus.
+ * Runs two queries — default "upcoming" plus next year — to widen coverage.
+ * Google Events has no date filter param, so year-specific search terms
+ * are the best way to reach events further out (travel planners book 6–18 months ahead).
+ * Dedup by event_token to avoid duplicates across queries.
  */
 export async function fetchGoogleEvents(): Promise<RawGoogleEvent[]> {
-  return fetchSerpApi<RawGoogleEvent>(
-    "google_events",
-    {
-      q: "Events in Hermanus",
-    },
-    (body) => (body.events_results as RawGoogleEvent[]) ?? [],
-  );
+  const nextYear = new Date().getFullYear() + 1;
+  const extract = (body: Record<string, unknown>) =>
+    (body.events_results as RawGoogleEvent[]) ?? [];
+
+  const [defaultResults, futureResults] = await Promise.all([
+    fetchSerpApi<RawGoogleEvent>("google_events", { q: "Events in Hermanus" }, extract),
+    fetchSerpApi<RawGoogleEvent>("google_events", { q: `Events in Hermanus ${nextYear}` }, extract),
+  ]);
+
+  // Dedup by event_token (SerpAPI's unique event ID)
+  const seen = new Set<string>();
+  const combined: RawGoogleEvent[] = [];
+  for (const event of [...defaultResults, ...futureResults]) {
+    const key = event.event_token ?? event.title;
+    if (!seen.has(key)) {
+      seen.add(key);
+      combined.push(event);
+    }
+  }
+
+  return combined;
 }

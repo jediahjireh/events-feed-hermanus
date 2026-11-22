@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiGet, apiPost } from "@/lib/api-client";
+import { apiGet, apiPost, apiPatch } from "@/lib/api-client";
 import { toast } from "sonner";
 
 export type IngestRun = {
@@ -53,6 +53,24 @@ export function useTriggerIngest() {
     },
     onError: (error: Error) => {
       toast.error("Ingest failed", { description: error.message });
+    },
+  });
+}
+
+export function useCancelRun() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (runId: string) => {
+      const result = await apiPatch(`/api/ingest/runs/${runId}`);
+      if (!result.ok) throw new Error(result.errors[0]?.message ?? "Failed to cancel run");
+    },
+    onSuccess: () => {
+      toast.success("Run cancelled");
+      queryClient.invalidateQueries({ queryKey: ingestKeys.runs() });
+    },
+    onError: (error: Error) => {
+      toast.error("Cancel failed", { description: error.message });
     },
   });
 }

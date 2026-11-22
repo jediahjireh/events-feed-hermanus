@@ -2,7 +2,7 @@
 name: ingest
 description: Run or build an event ingestion pipeline for a specific source. TRIGGER when adding a new source, running an ingestion, or debugging ingestion output.
 user-invocable: true
-disable-model-invocation: true
+disable-model-invocation: false
 argument-hint: "[source-name | 'all' | 'dry-run']"
 ---
 
@@ -23,7 +23,7 @@ If "dry-run", do everything except write to the database — output what would b
 - **Google Events**: Call SerpAPI `google_events` engine with query `"Events in Hermanus"`. Returns structured event data.
 - **Facebook Events**: Run the Apify actor `apify/facebook-events-scraper` targeting Hermanus event pages. Note: frequently rate-limited by Facebook.
 - **Eventbrite**: Call SerpAPI `eventbrite` engine with location `"Hermanus, Western Cape, South Africa"`. Client-side GPS bounding box filter applied.
-- **TripAdvisor**: Run the Apify actor `maxcopell/tripadvisor` for Hermanus attractions and events.
+- **TripAdvisor**: Call SerpAPI `tripadvisor` engine with queries for Hermanus activities, events, and tours. Location-filtered to Hermanus area.
 - **Quicket**: Run the Apify actor `gtnetworks/sa-events-listings`. Filter results for Hermanus/Western Cape.
 - **Scrapers**: Fetch the page HTML via `fetch()`, pass to Claude Haiku with extraction prompt.
 
@@ -44,6 +44,7 @@ For each raw event:
 ### 4. Deduplicate
 
 For each extracted event, check existing events for fuzzy matches:
+
 - Normalise title: lowercase, strip "the", remove punctuation, collapse whitespace.
 - Match criteria: normalised title similarity > 0.7 AND dates overlap AND (venue matches OR venue is null).
 - If match found: update existing event (merge data, bump confidence if multi-source), create new EventVersion.
@@ -52,6 +53,7 @@ For each extracted event, check existing events for fuzzy matches:
 ### 5. Report
 
 Output a run report:
+
 ```
 Source: google-events
 Timestamp: 2027-01-15T02:00:00Z
@@ -67,6 +69,7 @@ Cost: $0.003
 ## Tracer Bullets
 
 After every ingestion run:
+
 1. Check that all created events have valid temporal types (no nulls on required fields).
 2. Check that no event has `confidence > source.trust_level` (can't be more confident than the source).
 3. Check for any events with `temporal.type === "point"` and `start_date` in the past — these should be `status: "past"`.

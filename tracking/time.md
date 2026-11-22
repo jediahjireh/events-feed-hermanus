@@ -1,6 +1,6 @@
 # Time Tracking
 
-Target: 1–2 hours personal time (per spec). Actual: ~2h 40min across three sessions — went beyond scope to build frontend, admin panel, E2E test runner, and a full verification/fix cycle. The design + backend (the core deliverable) was ~1h 55min.
+Target: 1–2 hours personal time (per spec). Actual: ~2h 50min across three sessions — went beyond scope to build frontend, admin panel, E2E test runner, and a full verification/fix cycle. The design + backend (the core deliverable) was ~1h 55min.
 
 ## Commit Timeline
 
@@ -38,7 +38,7 @@ The 00:25–00:33 batch (9 commits in 8 min) was code built in the prior session
 | Research                               | Study schema.org Event/Schedule types, agent-friendly API patterns                                             | 5 min         | Web searches for temporal modelling patterns                        |
 | Design                                 | Pen-and-paper notes (6 pages: problem, data model, overlap logic, architecture, sources + gaps, quality model) | 15 min        | Photos in docs/pen-and-paper/ — pure human work                     |
 | Design                                 | Write DESIGN.md (data model, API, principles, open decisions, hand-worked cases)                               | 20 min        | Most important deliverable — directed Claude, verified every claim  |
-| Setup                                  | Create CLAUDE.md, skills, project structure                                                                    | 15 min        | Reviewed template bundle, adapted 9 skills, build prompts, tasks    |
+| Setup                                  | Create CLAUDE.md, skills, project structure                                                                    | 15 min        | Reviewed template bundle, adapted 10 skills, build prompts, tasks    |
 |                                        | **Session 1 subtotal**                                                                                         | **~1h 10min** |                                                                     |
 | **Session 2: Backend Build**           |                                                                                                                |               |                                                                     |
 | Build                                  | DB schema, temporal logic, source adapters, API routes, agents, seed data                                      | 15 min        | Claude builds from DESIGN.md; I verify critical paths               |
@@ -50,11 +50,13 @@ The 00:25–00:33 batch (9 commits in 8 min) was code built in the prior session
 | Build                                  | 15+ components, 3 pages (feed, detail, admin), Tailwind v4, responsive                                        | 10 min        | Directed component architecture, reviewed each page                 |
 | Build                                  | Admin panel: health overview, ingest/review triggers, E2E test runner (19 checks)                              | 10 min        | E2E runner exercises all 13 API endpoints live                      |
 | Verify                                 | Run /verify audit — found 20 issues across 4 severity levels                                                   | 5 min         | 3 must-fix (security, stale date, crash), 8 should-fix, 3 doc fixes |
-| Fix                                    | Apply all 14 code/doc fixes, regression test (125/125 pass, 0 build errors)                                    | 10 min        | Reviewed each fix for correctness, ran deep verification            |
+| Fix                                    | Apply all 14 code/doc fixes, regression test (175/175 pass, 0 build errors)                                    | 10 min        | Reviewed each fix for correctness, ran deep verification            |
 | Docs                                   | Update time/cost tracking, prompts-collection, talking points                                                  | 5 min         | This entry — demonstrating process, not just output                 |
-|                                        | **Session 3 subtotal**                                                                                         | **~45min**    |                                                                     |
+| Harden                                 | Production data quality fixes: markPastEvents, extraction prompts, dedup merge, version records                | 5 min         | Phase 10 — directed fixes, verified with 175/175 tests             |
+| Final audit                            | Numbers audit across all docs, /verify full codebase, reconcile figures                                        | 5 min         | Caught 11 stale numbers, 3 SHOULD-FIX code items                   |
+|                                        | **Session 3 subtotal**                                                                                         | **~55min**    |                                                                     |
 |                                        |                                                                                                                |               |                                                                     |
-|                                        | **Grand total**                                                                                                | **~2h 40min** |                                                                     |
+|                                        | **Grand total**                                                                                                | **~2h 50min** |                                                                     |
 
 ## Where the time went
 
@@ -62,13 +64,13 @@ The 00:25–00:33 batch (9 commits in 8 min) was code built in the prior session
 
 **Session 2 — Backend build: ~45 min** — Claude built from the DESIGN.md plan. My time was verifying temporal overlap logic, spot-checking agent extraction, testing deployment, and directing the post-deploy hardening pass (agent wiring, cron, API validation).
 
-**Session 3 — Frontend + verification: ~45min** — This was beyond the minimum deliverable. The homework spec asked for a design + working code, not a UI. I built the frontend because:
+**Session 3 — Frontend + verification + hardening: ~55min** — This was beyond the minimum deliverable. The homework spec asked for a design + working code, not a UI. I built the frontend because:
 
 1. It makes the demo tangible — a reviewer can see the feed, not just curl the API
 2. The admin panel (ingest/review triggers, E2E test runner) proves the system works end-to-end
 3. The /verify audit caught a real security issue (unbounded LLM output in DB writes) — worth the extra time
 
-**The verification cycle is the key differentiator.** Running /verify → reviewing 20 findings → fixing 14 issues → re-verifying → confirming 125/125 tests pass. This is the opposite of "run Claude and ship" — it's iterative quality engineering with human judgement at every decision point.
+**The verification cycle is the key differentiator.** Running /verify → reviewing 20 findings → fixing 14 issues → re-verifying → confirming 175/175 tests pass. This is the opposite of "run Claude and ship" — it's iterative quality engineering with human judgement at every decision point.
 
 ## What "active time" means
 
@@ -77,4 +79,4 @@ The 00:25–00:33 batch (9 commits in 8 min) was code built in the prior session
 - **Verification**: running tests, reviewing audit findings, confirming fixes don't regress
 - **NOT active**: waiting for Claude to generate code, waiting for builds to run, waiting for test suites
 
-The 2h 40min is engagement time — reading, thinking, deciding, verifying: any manual input.
+The 2h 50min is engagement time — reading, thinking, deciding, verifying: any manual input.

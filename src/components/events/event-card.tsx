@@ -1,5 +1,8 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
-import { MapPin, Clock } from "lucide-react";
+import { MapPin, Clock, ImageOff } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TemporalBadge } from "@/components/ui/temporal-badge";
@@ -36,11 +39,41 @@ function formatTemporal(t: Event["temporal"]): string {
   }
 }
 
+function ImagePlaceholder() {
+  return (
+    <div className="relative aspect-video w-full overflow-hidden rounded-t-lg bg-soft-sage/20">
+      <div className="flex h-full items-center justify-center">
+        <ImageOff className="h-8 w-8 text-deep-forest/15" />
+      </div>
+    </div>
+  );
+}
+
+function EventImage({ src, alt }: { src: string; alt: string }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) return <ImagePlaceholder />;
+  return (
+    <div className="relative aspect-video w-full overflow-hidden rounded-t-lg bg-soft-sage/30">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={src}
+        alt={alt}
+        loading="lazy"
+        onError={() => setFailed(true)}
+        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+      />
+    </div>
+  );
+}
+
 export function EventCard({ event }: { event: Event }) {
+  const heroImage = event.images?.[0];
+
   return (
     <Link href={`/events/${event.id}`} className="group block">
-      <Card className="h-full transition-all duration-200 hover:shadow-md hover:border-vibrant-leaf/40">
-        <CardContent className="p-5">
+      <Card className="h-full overflow-hidden transition-all duration-200 hover:shadow-md hover:border-vibrant-leaf/40">
+        {heroImage ? <EventImage src={heroImage} alt={event.title} /> : <ImagePlaceholder />}
+        <CardContent className="p-5 pt-4">
           <div className="flex items-start justify-between gap-2">
             <h3 className="text-lg font-bold leading-tight group-hover:text-vibrant-leaf transition-colors">
               {event.title}
@@ -95,8 +128,9 @@ export function EventCard({ event }: { event: Event }) {
 
 export function EventCardSkeleton() {
   return (
-    <Card className="h-full">
-      <CardContent className="p-5 space-y-3">
+    <Card className="h-full overflow-hidden">
+      <Skeleton className="aspect-video w-full rounded-none" />
+      <CardContent className="p-5 pt-4 space-y-3">
         <div className="flex items-start justify-between gap-2">
           <Skeleton className="h-6 w-3/4" />
           <Skeleton className="h-5 w-16 rounded-md" />

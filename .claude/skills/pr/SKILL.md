@@ -2,7 +2,7 @@
 name: pr
 description: Create a pull request with a structured description, security checklist, and verification steps. Handles branch creation, pushing, and PR creation via gh CLI.
 user-invocable: true
-disable-model-invocation: true
+disable-model-invocation: false
 argument-hint: "[branch-name] [base-branch] [--draft]"
 allowed-tools: [Read, Bash, Grep, Glob]
 ---
@@ -31,6 +31,7 @@ Create a pull request for the current changes with a structured description.
 4. Write the PR description using the template below.
 
 5. Push the branch and create the PR:
+
    ```bash
    git push -u origin <branch-name>
    gh pr create --title "<title>" --body "<body>"
@@ -63,7 +64,7 @@ Tick each line honestly, or write why it does not apply.
 ## How I verified it
 
 <!-- Commands run, tests added, what was checked. Example:
-- `pnpm test` — 125/125 pass
+- `pnpm test` — 175/175 pass
 - `pnpm build` — 0 errors, 14 routes
 - Tested on production: https://events-feed-hermanus.vercel.app
 - Ran `/project:verify` — all clear

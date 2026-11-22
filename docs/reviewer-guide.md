@@ -7,8 +7,8 @@
 - [Architecture](#architecture)
 - [Tech Stack](#tech-stack)
 - [Key Numbers](#key-numbers)
-- [Quick Test Prompt](#quick-test-prompt)
-- [Full CRUD Testing](#full-crud-testing)
+- [Try It — Ask Claude to Plan a Trip](#try-it--ask-claude-to-plan-a-trip)
+- [Full Technical Verification](#full-technical-verification)
 - [Key Links](#key-links)
 - [What I'd Improve Next](#what-id-improve-next)
 
@@ -70,107 +70,59 @@ Review Agent (re-verify)  ←─────────────────
 
 ---
 
-## Quick Test Prompt
+## Try It — Ask Claude to Plan a Trip
 
-Paste the prompt below into any Claude session (claude.ai, desktop app, or API) to run a live test of the production API. All requests are GET — no auth or write access needed. Claude uses web fetch to hit each endpoint and reports PASS/FAIL.
+The point of this system is that a travel planner (human or AI) can ask "what is on while my traveller is there?" and get a useful answer. Paste any of the prompts below into a Claude chat to see it work.
+
+### Prompt 1 — Luxury couple, September 2027
 
 > On GitHub, click the copy button on the code block below.
 
 ```text
-Test the Hermanus Event Feed API at https://events-feed-hermanus.vercel.app.
+I'm putting together a week in Hermanus for a couple — they arrive September 14, leave September 21, 2027. Luxury end, into wine and nature.
 
-For each test below, fetch the URL, check the response against the expected result, and report PASS or FAIL with the actual values. All requests are GET.
+I've got a local event feed for the area: https://events-feed-hermanus.vercel.app/api/events (docs at /api/schema if you need them — it takes `from`/`to` date params, `suitable_for` traveller profiles, and `sort=relevance`).
 
-1. Health check
-   GET /api/health
-   Expected: status "healthy", total_active_events >= 5, sources array with 7 entries
-
-2. OpenAPI schema
-   GET /api/schema
-   Expected: openapi "3.1.0", paths object with 10 entries
-
-3. Sources list
-   GET /api/sources?per_page=2
-   Expected: data array with 2 items, meta.total_count >= 7, meta.has_more = true
-
-4. Events list
-   GET /api/events
-   Expected: response has data, meta, errors keys; meta.total_count >= 5
-
-5. Category filter
-   GET /api/events?categories=wildlife
-   Expected: every event in data has "wildlife" in its categories array
-
-6. Confidence filter
-   GET /api/events (note the minimum confidence of returned events)
-   GET /api/events?min_confidence=0
-   Expected: default results all have confidence >= 0.6; min_confidence=0 returns more events
-
-7. Cancelled filter
-   GET /api/events (check no event has status "cancelled")
-   GET /api/events?status=cancelled
-   Expected: default excludes cancelled; ?status=cancelled returns 1+ cancelled events
-
-8. Hand-worked Case 1 — luxury couple, Sep 14-21 2027
-   GET /api/events?from=2027-09-14&to=2027-09-21&suitable_for=couples,luxury
-   Expected: results include Whale Watching, Country Market, Wine Tasting
-   Expected: results do NOT include Whale Festival or FynArts
-
-9. Hand-worked Case 2 — family, June 2027
-   GET /api/events?from=2027-06-01&to=2027-06-30&suitable_for=families
-   Expected: results include Whale Watching, Country Market
-   Expected: results do NOT include FynArts
-
-10. Hand-worked Case 4 — cancelled Beach Concert
-    GET /api/events?status=cancelled
-    Expected: Beach Concert appears in cancelled list
-    GET /api/events
-    Expected: Beach Concert does NOT appear in active list
-
-11. Pagination
-    GET /api/events?per_page=2&page=1
-    GET /api/events?per_page=2&page=2
-    Expected: page 1 has 2 items with has_more=true; page 2 has items; total_count is consistent
-
-12. Sorting
-    GET /api/events?sort=date
-    GET /api/events?sort=confidence
-    GET /api/events?sort=relevance
-    Expected: all three return results without errors
-
-13. Relevance scoring
-    GET /api/events?suitable_for=luxury&sort=relevance
-    Expected: Wine Tasting appears in the top 3 results
-
-14. Error handling
-    GET /api/events/nonexistent-id-99999
-    Expected: 404 response
-    GET /api/events?from=2027-12-31&to=2027-01-01
-    Expected: 400 response (reversed date range)
-
-15. Cron auth
-    GET /api/cron
-    Expected: 401 response (missing authorization header)
-
-16. Ingest run history
-    GET /api/ingest/runs
-    Expected: response has data array
-
-Summarise with a table showing each test number, name, PASS/FAIL, and key actual values.
-Report the total: X/16 PASS.
+What's happening while they're there? Anything worth extending the trip for? Put together a briefing I can send them.
 ```
+
+**What this tests:** Claude uses the hinted params to query with date range + traveller profile filters, uses relevance sorting, and presents results as a natural trip briefing. Expected: whale watching (seasonal), country market (recurring Saturday), wine tasting (recurring Friday). The Whale Festival (Sep 27-28) should appear as a near-miss worth extending for — not as an overlap.
+
+### Prompt 2 — Family trip, June 2027
+
+```text
+I've got a family booking for Hermanus — two kids, 8 and 12, arriving June 2027. Parents are outdoorsy, keen on nature, but everything needs to work for the kids.
+
+I use this event feed to track what's on locally: https://events-feed-hermanus.vercel.app/api/events (full docs at /api/schema — key params are `from`/`to` for dates, `suitable_for=families` for profile filtering, `categories` for event types).
+
+What would you recommend for them? And flag anything that's on during their dates but wouldn't suit young kids — I'd rather know now than deal with a disappointed 8-year-old.
+```
+
+**What this tests:** Family profile filtering, June date range (whale season starts, FynArts overlaps but isn't family-tagged), natural presentation with practical family advice.
+
+### Prompt 3 — General exploration
+
+```text
+I'm building out Hermanus, South Africa as a new destination in our portfolio. Need to understand the annual rhythm — what happens when, what's seasonal, where the gaps are.
+
+There's a local event feed I've been pointed to: https://events-feed-hermanus.vercel.app/api/events (health check at /api/health, source info at /api/sources, full docs at /api/schema). Events endpoint takes `from`/`to`, `categories`, `suitable_for`, and `sort` params.
+
+Can you pull everything from the feed and give me a month-by-month picture? I want to know when to send couples, when to send families, and when the town's quiet.
+```
+
+**What this tests:** Claude explores the full API (health, sources, events), understands seasonal vs recurring vs point events, and synthesises a year-round overview. Shows the API is genuinely agent-friendly — a model can self-discover and use it without hand-holding.
 
 ---
 
-## Full CRUD Testing
+## Full Technical Verification
 
-The 16 tests above cover the read path. For full write-path testing (create, update, version conflicts, delete), use the admin panel:
+For systematic endpoint-by-endpoint testing, use the structured test prompts in the [testing guide](testing-guide.md#testing-with-claude--codex) or the admin panel's E2E test runner:
 
 1. Go to [events-feed-hermanus.vercel.app/admin](https://events-feed-hermanus.vercel.app/admin)
 2. Click the **E2E Tests** tab
-3. Click **Run All** — runs 19 checks including CRUD lifecycle, manual submission, and review agent
+3. Click **Run All** — runs 19 checks including CRUD lifecycle, manual submission, review agent, and error handling
 
-The E2E runner executes POST, PUT, and DELETE from the browser and reports PASS/FAIL with actual values.
+The E2E runner executes all HTTP methods (GET, POST, PUT, DELETE) from the browser and reports PASS/FAIL with actual values. This covers everything the Claude prompts above cannot test (write operations, exact HTTP status codes, version conflicts).
 
 ---
 
@@ -195,4 +147,8 @@ The E2E runner executes POST, PUT, and DELETE from the browser and reports PASS/
 
 2. **Source quality tracking** — Track what percentage of a source's events get corrected by the review agent. High correction rates should automatically lower trust_level.
 
-3. **iCal/RSS output** — `/api/events.ics` and `/api/events.rss` for calendar subscriptions.
+3. **Clickable location links** — Make event locations clickable (like the Website button), linking to Google Maps with the lat/lng coordinates from the location field.
+
+4. **Map visualization** — Add a map view showing event locations geographically, so travellers can see what's near their accommodation at a glance.
+
+5. **iCal/RSS output** — `/api/events.ics` and `/api/events.rss` for calendar subscriptions.

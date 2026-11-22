@@ -51,7 +51,7 @@ export async function fetchQuicketEvents(): Promise<RawApifyEvent[]> {
       // Actor input schema (verified Nov 2026 against actor docs)
       cities: ["Hermanus"],
       maxItems: 50,
-      upcomingDays: 90,
+      upcomingDays: 540,
     },
     (e) =>
       e.city?.toLowerCase().includes("hermanus") ||

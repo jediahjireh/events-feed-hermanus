@@ -21,7 +21,7 @@ If a pattern from training data conflicts with current docs, prefer the docs. If
 
 ## Code Style
 
-Keep changes minimal and DRY. Follow best practices and adhere to the existing code style as closely as possible.
+Keep changes minimal and DRY. Adhere to the existing code style as closely as possible.
 Refactor where appropriate to improve modularity and separation of concerns. Prefer extracting logic into well-named functions, types, configs, or subfiles rather than expanding existing files. Reuse existing types from shared type files wherever available instead of introducing duplicates.
 Before asking questions, scan the codebase and understand the current flow. Only ask clarifying questions if the answer cannot be derived directly from the code.
 Update existing files in place to support the required changes. "Make minimal changes to achieve desired outcome" is the rallying cry.
@@ -126,7 +126,7 @@ Every event has a `temporal` field with a `type` discriminator: `"point"`, `"ran
 
 ## Security & Secrets
 
-- API keys (SerpAPI, Apify, Anthropic) go in `.env.local`, never committed. SerpAPI covers Google Events + Eventbrite; Apify covers Facebook, TripAdvisor, Quicket.
+- API keys (SerpAPI, Apify, Anthropic) go in `.env.local`, never committed. SerpAPI covers Google Events, Eventbrite, and TripAdvisor; Apify covers Facebook and Quicket.
 - `.env.example` documents required keys with placeholder values.
 - If you spot a key in source code, remove it immediately.
 - Input validation at API boundary. Parameterised queries via Drizzle ORM. Never concatenate user input into SQL.
@@ -155,7 +155,7 @@ Every event has a `temporal` field with a `type` discriminator: `"point"`, `"ran
 | ORM | Drizzle |
 | AI (extraction) | Claude Haiku 5.5 |
 | Validation | Zod |
-| Event sources | SerpAPI (Google Events, Eventbrite) + Apify actors (Facebook, TripAdvisor, Quicket) + fetch + Claude |
+| Event sources | SerpAPI (Google Events, Eventbrite, TripAdvisor) + Apify actors (Facebook, Quicket) + fetch + Claude |
 | Deployment | Vercel ([live](https://events-feed-hermanus.vercel.app)) |
 
 ## Project Structure
@@ -216,10 +216,9 @@ events-feed-hermanus/
 │   │       ├── google-events.ts   # Google Events adapter (SerpAPI google_events engine)
 │   │       ├── facebook.ts        # Facebook Events adapter (Apify apify/facebook-events-scraper)
 │   │       ├── eventbrite.ts      # Eventbrite adapter (SerpAPI eventbrite engine)
-│   │       ├── tripadvisor.ts     # TripAdvisor adapter (Apify maxcopell/tripadvisor)
+│   │       ├── tripadvisor.ts     # TripAdvisor adapter (SerpAPI tripadvisor engine)
 │   │       ├── quicket.ts         # Quicket adapter (Apify scraper)
-│   │       ├── scraper.ts         # Generic Claude-powered scraper
-│   │       └── manual.ts          # Manual submission handler
+│   │       └── scraper.ts         # Generic Claude-powered scraper
 │   ├── agents/
 │   │   ├── ingest.ts            # Ingest agent (fetch → extract → normalise → store)
 │   │   ├── review.ts            # Review agent (re-verify existing events)

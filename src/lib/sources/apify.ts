@@ -54,14 +54,16 @@ export async function fetchLatestDataset<T>(
 }
 
 /**
- * Trigger a new actor run with the given input, then poll until the dataset is ready.
- * Times out after maxWaitMs (default 120 seconds).
+ * Trigger a new actor run with the given input, then poll until the run finishes.
+ * Waits for the run to reach a terminal status before fetching the dataset,
+ * so we always get the complete result set (not partial early results).
+ * Times out after maxWaitMs (default 180 seconds).
  */
 export async function triggerAndFetchRun<T>(
   actorId: string,
   apiKey: string,
   input: Record<string, unknown>,
-  maxWaitMs = 120_000
+  maxWaitMs = 180_000
 ): Promise<T[]> {
   const id = normalizeActorId(actorId);
   const runResponse = await fetch(
@@ -89,7 +91,7 @@ export async function triggerAndFetchRun<T>(
     throw new Error(`Apify run for ${actorId} did not return a dataset ID`);
   }
 
-  // Poll for completion — check both run status and dataset
+  // Poll for run completion — only fetch dataset once the run reaches a terminal state
   const pollInterval = 5_000;
   let elapsed = 0;
 
@@ -97,39 +99,29 @@ export async function triggerAndFetchRun<T>(
     await new Promise((resolve) => setTimeout(resolve, pollInterval));
     elapsed += pollInterval;
 
-    // Check run status first
     const statusResponse = await fetch(
       `${APIFY_BASE}/actor-runs/${runId}?token=${apiKey}`
     );
-    if (statusResponse.ok) {
-      const statusData = (await statusResponse.json()) as {
-        data?: { status?: string };
-      };
-      const status = statusData.data?.status;
+    if (!statusResponse.ok) continue;
 
-      // Terminal states: check dataset and return whatever we have
-      if (
-        status === "SUCCEEDED" ||
-        status === "FAILED" ||
-        status === "ABORTED" ||
-        status === "TIMED-OUT"
-      ) {
-        const datasetUrl = `${APIFY_BASE}/datasets/${datasetId}/items?token=${apiKey}&format=json&clean=true`;
-        const datasetResponse = await fetch(datasetUrl);
-        if (datasetResponse.ok) {
-          return (await datasetResponse.json()) as T[];
-        }
-        // Run finished but dataset fetch failed — return empty
-        return [];
+    const statusData = (await statusResponse.json()) as {
+      data?: { status?: string };
+    };
+    const status = statusData.data?.status;
+
+    // Wait for terminal state before fetching dataset
+    if (
+      status === "SUCCEEDED" ||
+      status === "FAILED" ||
+      status === "ABORTED" ||
+      status === "TIMED-OUT"
+    ) {
+      const datasetUrl = `${APIFY_BASE}/datasets/${datasetId}/items?token=${apiKey}&format=json&clean=true`;
+      const datasetResponse = await fetch(datasetUrl);
+      if (datasetResponse.ok) {
+        return (await datasetResponse.json()) as T[];
       }
-    }
-
-    // Run still in progress — check dataset optimistically
-    const datasetUrl = `${APIFY_BASE}/datasets/${datasetId}/items?token=${apiKey}&format=json&clean=true`;
-    const datasetResponse = await fetch(datasetUrl);
-    if (datasetResponse.ok) {
-      const items = (await datasetResponse.json()) as T[];
-      if (items.length > 0) return items;
+      return [];
     }
   }
 
@@ -140,7 +132,8 @@ export async function triggerAndFetchRun<T>(
 
 /**
  * Fetch data from an Apify actor: try latest dataset first, fall back to triggering a new run.
- * Optionally filter results after fetching.
+ * Applies the filter BEFORE checking emptiness — if the latest dataset has items but they're
+ * all filtered out (e.g. stale data from wrong input params), triggers a fresh run.
  */
 export async function fetchApifyActor<T>(
   actorId: string,
@@ -151,11 +144,13 @@ export async function fetchApifyActor<T>(
 
   // Try latest dataset first (cheapest path)
   const latest = await fetchLatestDataset<T>(actorId, apiKey);
-  let items = latest ?? (await triggerAndFetchRun<T>(actorId, apiKey, input));
-
-  if (filter) {
-    items = items.filter(filter);
+  if (latest && latest.length > 0) {
+    const filtered = filter ? latest.filter(filter) : latest;
+    if (filtered.length > 0) return filtered;
+    // Latest data exists but all filtered out — stale or wrong input params
   }
 
-  return items;
+  // No usable data from latest run — trigger a fresh run
+  const fresh = await triggerAndFetchRun<T>(actorId, apiKey, input);
+  return filter ? fresh.filter(filter) : fresh;
 }
