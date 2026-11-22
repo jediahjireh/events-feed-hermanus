@@ -46,6 +46,8 @@ If the event has multiple specific dates, use "range" with a dates array.
 
 Explain your temporal classification in one sentence in a "reasoning" field.
 
+REJECT plain geographic locations that are not events, tours, or activities. If the listing is just a beach, nature reserve, cliff path, hiking trail, mountain, harbour, or other geographic feature with no associated activity, tour, or experience — respond with: {"rejected": true, "reason": "Plain geographic location, not an event or activity"}. Only extract listings that describe something a visitor can DO (a tour, activity, experience, market, festival, concert, tasting, etc.) or a time-bound event.
+
 If you're not confident about any field, set it to null — except start_date for point/range events, which must always be a YYYY-MM-DD string. Set confidence to a number between 0 and 1 based on how complete and unambiguous the source data is.
 
 REQUIRED FIELDS — these must NEVER be empty arrays:
@@ -252,6 +254,12 @@ async function extractEvent(
     // Parse JSON — handle potential markdown wrapping or preamble text
     const jsonStr = extractJson(text);
     const parsed = JSON.parse(jsonStr);
+
+    // Claude may reject plain locations (beaches, reserves, paths)
+    if (parsed.rejected) {
+      report.events_skipped++;
+      return null;
+    }
 
     // Fill in missing null fields for temporal
     const temporal = normaliseTemporalOutput(parsed.temporal);
