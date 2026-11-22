@@ -1,8 +1,10 @@
 "use client";
 
+import { useMemo } from "react";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { NaturalDatePicker } from "@/components/ui/natural-date-picker";
 import { useSources } from "@/hooks/use-sources";
 import { cn } from "@/lib/utils";
 
@@ -40,7 +42,20 @@ export function FilterBar({
 
   const hasFilters = Object.values(filters).some((v) => v);
 
-  const inputClass =
+  // Parse "to" date to constrain "from" picker's max, and vice versa
+  const toDate = useMemo(() => {
+    if (!filters.to) return undefined;
+    const [y, m, d] = filters.to.split("-").map(Number);
+    return y && m && d ? new Date(y, m - 1, d, 12) : undefined;
+  }, [filters.to]);
+
+  const fromDate = useMemo(() => {
+    if (!filters.from) return undefined;
+    const [y, m, d] = filters.from.split("-").map(Number);
+    return y && m && d ? new Date(y, m - 1, d, 12) : undefined;
+  }, [filters.from]);
+
+  const selectClass =
     "mt-1 block w-full rounded-md border border-soft-sage bg-white px-3 py-1.5 text-sm shadow-sm focus:border-vibrant-leaf focus:outline-none focus:ring-1 focus:ring-vibrant-leaf";
 
   return (
@@ -48,30 +63,28 @@ export function FilterBar({
       <CardContent className="space-y-4 p-4">
         {/* Date range + selects */}
         <div className="flex flex-wrap items-end gap-3">
-          <label className="text-sm font-medium">
-            From
-            <input
-              type="date"
-              value={filters.from ?? ""}
-              onChange={(e) => onChange("from", e.target.value)}
-              className={inputClass}
-            />
-          </label>
-          <label className="text-sm font-medium">
-            To
-            <input
-              type="date"
-              value={filters.to ?? ""}
-              onChange={(e) => onChange("to", e.target.value)}
-              className={inputClass}
-            />
-          </label>
+          <NaturalDatePicker
+            label="From"
+            value={filters.from ?? ""}
+            onChange={(v) => onChange("from", v)}
+            maxDate={toDate}
+            placeholder='e.g. "tomorrow"'
+            className="w-48"
+          />
+          <NaturalDatePicker
+            label="To"
+            value={filters.to ?? ""}
+            onChange={(v) => onChange("to", v)}
+            minDate={fromDate}
+            placeholder='e.g. "next friday"'
+            className="w-48"
+          />
           <label className="text-sm font-medium">
             Source
             <select
               value={filters.source_id ?? ""}
               onChange={(e) => onChange("source_id", e.target.value)}
-              className={inputClass}
+              className={selectClass}
             >
               <option value="">All sources</option>
               {sources.map((s) => (
@@ -86,7 +99,7 @@ export function FilterBar({
             <select
               value={filters.sort ?? "relevance"}
               onChange={(e) => onChange("sort", e.target.value)}
-              className={inputClass}
+              className={selectClass}
             >
               {SORT_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>
