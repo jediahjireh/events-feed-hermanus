@@ -5,7 +5,7 @@ import * as chrono from "chrono-node";
 import { Calendar as CalendarIcon, X } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { trySeasonParse, getSeasonLabel } from "@/lib/season-dates";
+import { trySeasonParse, getSeasonLabel, getEffectiveRole } from "@/lib/season-dates";
 import { cn } from "@/lib/utils";
 
 /** Format a Date to "Mon DD, YYYY" using native Intl */
@@ -72,10 +72,14 @@ export function NaturalDatePicker({
   // Derive selected date from the controlled value prop
   const selectedDate = parseISODate(value);
 
-  // Sync input text when value changes externally (e.g. URL params, clear)
+  // Sync input text when value changes externally (e.g. URL params, clear).
+  // If the user typed a season name, keep it visible (with its hint label)
+  // rather than immediately overwriting with the formatted date.
   useEffect(() => {
     if (selectedDate) {
-      setInputText(formatDate(selectedDate));
+      if (!getSeasonLabel(inputText)) {
+        setInputText(formatDate(selectedDate));
+      }
       setDisplayMonth(selectedDate);
     } else {
       setInputText("");
@@ -150,7 +154,10 @@ export function NaturalDatePicker({
           if (minDate && parsed < minDate) return;
           if (maxDate && parsed > maxDate) return;
           onChange(toISODate(parsed));
-          setInputText(formatDate(parsed));
+          // Keep season name visible if the user typed one (e.g. "winter")
+          if (!getSeasonLabel(inputText)) {
+            setInputText(formatDate(parsed));
+          }
           setDisplayMonth(parsed);
         }
         setOpen(false);
@@ -245,7 +252,7 @@ export function NaturalDatePicker({
               )}
               {getSeasonLabel(inputText) && selectedDate && (
                 <p className="mt-1 text-xs text-vibrant-leaf">
-                  {getSeasonLabel(inputText)} — {role === "start" ? "start" : "end"}
+                  {getSeasonLabel(inputText)} — {getEffectiveRole(inputText, role) === "start" ? "start" : "end"}
                 </p>
               )}
             </div>

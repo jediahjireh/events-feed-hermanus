@@ -30,12 +30,44 @@ export const SEASONS: SeasonDef[] = [
   { aliases: ["festival season", "festivals"],              start: [8, 1],   end: [9, 31],   label: "Festival season (Sep–Oct)" },
 ];
 
+/** Prefixes that override the picker's default role */
+const START_PREFIXES = ["start of ", "beginning of ", "early "];
+const END_PREFIXES = ["end of ", "late "];
+
+export interface SeasonMatch {
+  season: SeasonDef;
+  /** Explicit role override from prefix, or null to use the picker's default */
+  roleOverride: "start" | "end" | null;
+}
+
 /**
  * Find a season definition matching the given text (case-insensitive, trimmed).
+ * Supports optional prefixes like "start of winter", "end of spring", "early whale season".
  */
-export function findSeason(text: string): SeasonDef | null {
+export function findSeason(text: string): SeasonMatch | null {
   const normalized = text.trim().toLowerCase();
-  return SEASONS.find((s) => s.aliases.some((a) => a === normalized)) ?? null;
+
+  // Try with start/end prefix first
+  for (const prefix of START_PREFIXES) {
+    if (normalized.startsWith(prefix)) {
+      const rest = normalized.slice(prefix.length);
+      const season = SEASONS.find((s) => s.aliases.some((a) => a === rest));
+      if (season) return { season, roleOverride: "start" };
+    }
+  }
+  for (const prefix of END_PREFIXES) {
+    if (normalized.startsWith(prefix)) {
+      const rest = normalized.slice(prefix.length);
+      const season = SEASONS.find((s) => s.aliases.some((a) => a === rest));
+      if (season) return { season, roleOverride: "end" };
+    }
+  }
+
+  // Try bare season name
+  const season = SEASONS.find((s) => s.aliases.some((a) => a === normalized));
+  if (season) return { season, roleOverride: null };
+
+  return null;
 }
 
 /**
@@ -52,14 +84,18 @@ export function resolveSeasonDate(
   now: Date = new Date(),
   notBefore?: Date,
 ): Date {
+  // Normalize now to noon so comparisons aren't affected by time-of-day.
+  // Without this, a user on the last day of a season after noon would see
+  // the resolution jump to the next year's occurrence.
+  const noon = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12);
   const isCrossYear = season.end[0] < season.start[0]; // e.g., summer: end month (1=Feb) < start month (11=Dec)
 
   let result: Date;
 
   if (isCrossYear) {
-    result = resolveCrossYear(season, role, now);
+    result = resolveCrossYear(season, role, noon);
   } else {
-    result = resolveSameYear(season, role, now);
+    result = resolveSameYear(season, role, noon);
   }
 
   // If the result is before the floor, bump to the next year's occurrence
@@ -135,6 +171,15 @@ function addOneYear(date: Date): Date {
 
 /**
  * Convenience: parse text, resolve, return Date or null.
+ *
+ * If the input contains a prefix like "start of" or "end of", that overrides
+ * the default role from the picker. Otherwise, the picker's role is used.
+ *
+ * Examples:
+ *   trySeasonParse("winter", "start")        → Jun 1 (picker default)
+ *   trySeasonParse("winter", "end")          → Aug 31 (picker default)
+ *   trySeasonParse("end of winter", "start") → Aug 31 (prefix overrides)
+ *   trySeasonParse("start of spring", "end") → Sep 1 (prefix overrides)
  */
 export function trySeasonParse(
   text: string,
@@ -142,14 +187,28 @@ export function trySeasonParse(
   now?: Date,
   notBefore?: Date,
 ): Date | null {
-  const season = findSeason(text);
-  if (!season) return null;
-  return resolveSeasonDate(season, role, now, notBefore);
+  const match = findSeason(text);
+  if (!match) return null;
+  const effectiveRole = match.roleOverride ?? role;
+  return resolveSeasonDate(match.season, effectiveRole, now, notBefore);
 }
 
 /**
  * Get the display label for a matching season, or null.
+ * Includes the role override if a prefix was used.
  */
 export function getSeasonLabel(text: string): string | null {
-  return findSeason(text)?.label ?? null;
+  const match = findSeason(text);
+  if (!match) return null;
+  return match.season.label;
+}
+
+/**
+ * Get the effective role for display purposes.
+ * Returns the prefix override if present, otherwise the picker's default role.
+ */
+export function getEffectiveRole(text: string, pickerRole: "start" | "end"): "start" | "end" | null {
+  const match = findSeason(text);
+  if (!match) return null;
+  return match.roleOverride ?? pickerRole;
 }
