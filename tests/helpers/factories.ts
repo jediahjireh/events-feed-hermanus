@@ -181,8 +181,8 @@ export function makeSource(
 export const SEED_SOURCES = {
   googleEvents: {
     id: "google-events",
-    name: "Google Events (Apify)",
-    url: "https://apify.com/johnvc/google-events-api---access-google-events-data",
+    name: "Google Events (SerpAPI)",
+    url: "https://serpapi.com/google-events-api",
     trust_level: 0.8,
   },
   facebook: {
@@ -193,8 +193,8 @@ export const SEED_SOURCES = {
   },
   eventbrite: {
     id: "eventbrite",
-    name: "Eventbrite (Apify)",
-    url: "https://apify.com/parseforge/eventbrite-scraper",
+    name: "Eventbrite (SerpAPI)",
+    url: "https://serpapi.com/eventbrite-search-api",
     trust_level: 0.8,
   },
   tripadvisor: {
@@ -212,7 +212,7 @@ export const SEED_SOURCES = {
   hermanus: {
     id: "hermanus-co-za",
     name: "hermanus.co.za",
-    url: "https://www.hermanus.co.za/what-to-do/events-calendar/index.html",
+    url: "https://www.hermanus.co.za/what-to-do/annual-events/index.html",
     trust_level: 0.7,
   },
   manual: {
@@ -341,5 +341,22 @@ export const SEED_EVENTS = {
     source_id: "manual",
     confidence: 0.4,
     relevance_score: 0.6,
+  }),
+
+  ginJazzEvening: makePointEvent({
+    title: "Hermanus Craft Gin & Jazz Evening",
+    description:
+      "Live jazz and local craft gin tastings at the Harbour Square. Submitted by venue owner via manual entry.",
+    location: makeLocation({
+      name: "Harbour Square",
+      venue: "Harbour Square",
+    }),
+    temporal: makePointTemporal("2027-07-19"),
+    categories: ["music", "food-wine"],
+    source_id: "manual",
+    confidence: 0.7,
+    relevance_score: 0.75,
+    price_indication: "R250 per person",
+    suitable_for: ["couples", "solo"],
   }),
 };

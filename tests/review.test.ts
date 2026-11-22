@@ -35,7 +35,7 @@ import { runReview } from "@/agents/review";
 const eventWithSourceUrl = {
   id: "evt-1",
   title: "FynArts Festival 2027",
-  source_url: "https://fynarts.co.za",
+  source_url: "https://www.hermanusfynarts.co.za",
   links: null,
   status: "active",
   confidence: 0.85,
@@ -137,8 +137,8 @@ describe("runReview", () => {
 
     const report = await runReview("all");
 
-    expect(report.events_checked).toBe(1);
-    // Event is checked but skipped (no source URL to verify against)
+    expect(report.events_checked).toBe(0);
+    // Event filtered out before review (no source URL to verify against)
     expect(report.events_confirmed).toBe(0);
     expect(report.events_updated).toBe(0);
     expect(report.events_stale).toBe(0);
