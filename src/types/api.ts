@@ -38,6 +38,7 @@ export const EventQuerySchema = z
     to: z.iso.date().optional(),
     categories: z.string().optional(), // comma-separated
     suitable_for: z.string().optional(), // comma-separated
+    source_id: z.string().optional(),
     min_confidence: z.coerce.number().min(0).max(1).default(0.6),
     status: z
       .enum(["active", "cancelled", "tentative", "past"])

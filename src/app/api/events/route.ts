@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { events, eventVersions, sources } from "@/db/schema";
-import { eq, and, gte, inArray, sql } from "drizzle-orm";
+import { eq, and, gte } from "drizzle-orm";
 import { ulid } from "ulid";
 import { EventQuerySchema, apiPaginated, apiError, apiSuccess } from "@/types/api";
 import { CreateEventSchema } from "@/types/event";
@@ -57,6 +57,11 @@ export async function GET(request: NextRequest) {
       filtered = rows.filter((row) =>
         overlaps(row.temporal, travelStart, travelEnd)
       );
+    }
+
+    // Filter by source
+    if (query.source_id) {
+      filtered = filtered.filter((row) => row.source_id === query.source_id);
     }
 
     // Filter by categories (comma-separated, any match)

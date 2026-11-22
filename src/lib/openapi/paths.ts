@@ -77,6 +77,13 @@ export const paths = {
           example: "couples,luxury",
         },
         {
+          name: "source_id",
+          in: "query",
+          description: "Filter by source (e.g. quicket, eventbrite, manual)",
+          schema: { type: "string" },
+          example: "quicket",
+        },
+        {
           name: "min_confidence",
           in: "query",
           description: "Minimum confidence threshold (0-1)",

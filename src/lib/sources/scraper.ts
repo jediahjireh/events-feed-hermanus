@@ -8,6 +8,7 @@
  */
 
 import Anthropic from "@anthropic-ai/sdk";
+import { extractJson } from "@/lib/extract-json";
 
 export type ScrapedEvent = {
   title: string;
@@ -110,8 +111,8 @@ export async function scrapeUrl(url: string): Promise<ScrapeResult> {
   const textBlock = result.content.find((b) => b.type === "text");
   const text = textBlock && "text" in textBlock ? textBlock.text : "";
 
-  // Parse JSON response
-  const jsonStr = text.replace(/```json?\n?/g, "").replace(/```\n?/g, "").trim();
+  // Parse JSON response using brace-depth matching
+  const jsonStr = extractJson(text);
 
   try {
     const parsed = JSON.parse(jsonStr);
