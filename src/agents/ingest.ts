@@ -639,9 +639,17 @@ async function finaliseRun(
     })
     .where(eq(ingestRuns.id, runId));
 
-  // Update source last_scraped timestamp
-  await db
-    .update(sources)
-    .set({ last_scraped: new Date() })
-    .where(eq(sources.id, report.source_id));
+  // Update source last_scraped timestamp — wrapped in try/catch so a
+  // connection hiccup here doesn't clobber the already-recorded run status
+  try {
+    await db
+      .update(sources)
+      .set({ last_scraped: new Date() })
+      .where(eq(sources.id, report.source_id));
+  } catch (err) {
+    console.warn(
+      `Failed to update last_scraped for ${report.source_id}:`,
+      err instanceof Error ? err.message : String(err)
+    );
+  }
 }
