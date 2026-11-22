@@ -76,9 +76,9 @@ Score: X/6 per event, average across 5.
 
 ## Priority Sources to Evaluate First
 
-1. Google Events (Apify actor: `johnvc/google-events-api---access-google-events-data`) — highest expected yield
-2. Facebook Events (Apify actor: `apify/facebook-events-scraper`) — public event pages
-3. Eventbrite (Apify actor: `parseforge/eventbrite-scraper`) — ticketed events
+1. Google Events (SerpAPI `google_events` engine) — highest expected yield, confirmed reliable for Hermanus
+2. Facebook Events (Apify actor: `apify/facebook-events-scraper`) — public event pages (frequently rate-limited)
+3. Eventbrite (SerpAPI `eventbrite` engine) — ticketed events, location-based search with GPS filtering
 4. TripAdvisor (Apify actor: `maxcopell/tripadvisor`) — attractions and events
 5. Quicket (Apify actor: `gtnetworks/sa-events-listings`) — SA ticketing platform
 6. hermanus.co.za — local tourism site

@@ -9,6 +9,7 @@ Skills every project uses regardless of scope.
 | **Implement**      | `/project:implement`      | Build a feature, fix, or enhancement from a brief or description        |
 | **Verify**         | `/project:verify`         | Audit implementation for correctness, completeness, and rule compliance |
 | **Commit Plan**    | `/project:commit-plan`    | Group changes into logical commits with suggested messages              |
+| **PR**             | `/project:pr`             | Create a PR with structured description and security checklist          |
 | **Log Fix**        | `/project:log-fix`        | Record a fix to the knowledge base, or search past fixes                |
 | **Security Check** | `/project:security-check` | OWASP Top 10 security audit                                            |
 
@@ -51,6 +52,13 @@ Skills for the event feed's unique workflows.
 2. If recommended: create the adapter in `src/lib/sources/`
 3. Run `/project:ingest <source-name> --dry-run` to test
 4. Run `/project:ingest <source-name>` for real
+
+### Shipping Changes
+
+1. Run `/project:commit-plan` to group changes into logical commits
+2. Create a feature branch, commit the changes
+3. Run `/project:pr <branch-name>` to create the PR with description and security checklist
+4. After review: merge via GitHub
 
 ### After Debugging
 
