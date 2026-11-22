@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { events, eventVersions } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
-import { apiPaginated, apiError } from "@/types/api";
+import { PaginationSchema, apiPaginated, apiError } from "@/types/api";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -27,11 +27,17 @@ export async function GET(request: NextRequest, context: RouteContext) {
       );
     }
 
-    const page = Number(request.nextUrl.searchParams.get("page") ?? 1);
-    const perPage = Math.min(
-      Number(request.nextUrl.searchParams.get("per_page") ?? 20),
-      100
-    );
+    const params = Object.fromEntries(request.nextUrl.searchParams);
+    const parsed = PaginationSchema.safeParse(params);
+
+    if (!parsed.success) {
+      return NextResponse.json(
+        apiError("INVALID_QUERY", "Invalid query parameters", undefined, false),
+        { status: 400 }
+      );
+    }
+
+    const { page, per_page } = parsed.data;
 
     const versions = await db
       .select()
@@ -40,10 +46,10 @@ export async function GET(request: NextRequest, context: RouteContext) {
       .orderBy(desc(eventVersions.version));
 
     const total = versions.length;
-    const start = (page - 1) * perPage;
-    const pageData = versions.slice(start, start + perPage);
+    const start = (page - 1) * per_page;
+    const pageData = versions.slice(start, start + per_page);
 
-    return NextResponse.json(apiPaginated(pageData, total, page, perPage));
+    return NextResponse.json(apiPaginated(pageData, total, page, per_page));
   } catch (error) {
     console.error("GET /api/events/:id/versions error:", error);
     return NextResponse.json(

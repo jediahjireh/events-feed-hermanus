@@ -23,19 +23,32 @@ export type ApiError = {
   retryable: boolean;
 };
 
-// --- Query parameters for GET /api/events ---
+// --- Reusable pagination params ---
 
-export const EventQuerySchema = z.object({
-  from: z.iso.date().optional(),
-  to: z.iso.date().optional(),
-  categories: z.string().optional(), // comma-separated
-  suitable_for: z.string().optional(), // comma-separated
-  min_confidence: z.coerce.number().min(0).max(1).default(0.6),
-  status: z.enum(["active", "cancelled", "tentative", "past"]).default("active"),
-  sort: z.enum(["relevance", "date", "confidence"]).default("relevance"),
+export const PaginationSchema = z.object({
   page: z.coerce.number().int().positive().default(1),
   per_page: z.coerce.number().int().min(1).max(100).default(20),
 });
+
+// --- Query parameters for GET /api/events ---
+
+export const EventQuerySchema = z
+  .object({
+    from: z.iso.date().optional(),
+    to: z.iso.date().optional(),
+    categories: z.string().optional(), // comma-separated
+    suitable_for: z.string().optional(), // comma-separated
+    min_confidence: z.coerce.number().min(0).max(1).default(0.6),
+    status: z
+      .enum(["active", "cancelled", "tentative", "past"])
+      .default("active"),
+    sort: z.enum(["relevance", "date", "confidence"]).default("relevance"),
+  })
+  .extend(PaginationSchema.shape)
+  .refine((data) => !data.from || !data.to || data.from <= data.to, {
+    message: "'from' must be on or before 'to'",
+    path: ["from"],
+  });
 
 export type EventQuery = z.infer<typeof EventQuerySchema>;
 
@@ -49,11 +62,11 @@ export type IngestTriggerInput = z.infer<typeof IngestTriggerSchema>;
 
 // --- Ingest run query ---
 
-export const IngestRunQuerySchema = z.object({
-  source_id: z.string().optional(),
-  page: z.coerce.number().int().positive().default(1),
-  per_page: z.coerce.number().int().min(1).max(100).default(20),
-});
+export const IngestRunQuerySchema = z
+  .object({
+    source_id: z.string().optional(),
+  })
+  .extend(PaginationSchema.shape);
 
 export type IngestRunQuery = z.infer<typeof IngestRunQuerySchema>;
 

@@ -21,7 +21,23 @@ const ReviewTriggerSchema = z.object({
  */
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json().catch(() => ({}));
+    let body: unknown = {};
+    const text = await request.text();
+    if (text.trim()) {
+      try {
+        body = JSON.parse(text);
+      } catch {
+        return NextResponse.json(
+          apiError(
+            "INVALID_JSON",
+            "Request body is not valid JSON",
+            "Send a JSON object like { \"scope\": \"upcoming\" } or omit the body entirely",
+            false
+          ),
+          { status: 400 }
+        );
+      }
+    }
     const parsed = ReviewTriggerSchema.safeParse(body);
 
     if (!parsed.success) {

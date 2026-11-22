@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { ingestRuns } from "@/db/schema";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { IngestRunQuerySchema, apiPaginated, apiError } from "@/types/api";
 
 /**
@@ -26,17 +26,11 @@ export async function GET(request: NextRequest) {
       conditions.push(eq(ingestRuns.source_id, query.source_id));
     }
 
-    const rows =
-      conditions.length > 0
-        ? await db
-            .select()
-            .from(ingestRuns)
-            .where(conditions[0])
-            .orderBy(desc(ingestRuns.started_at))
-        : await db
-            .select()
-            .from(ingestRuns)
-            .orderBy(desc(ingestRuns.started_at));
+    const rows = await db
+      .select()
+      .from(ingestRuns)
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .orderBy(desc(ingestRuns.started_at));
 
     const total = rows.length;
     const start = (query.page - 1) * query.per_page;
