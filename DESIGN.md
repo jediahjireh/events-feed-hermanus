@@ -2,7 +2,7 @@
 
 ## Summary
 
-An event feed for Hermanus, South Africa that collects, normalises, and serves local events so travel agents and AI trip-planning agents can answer: *"What is on in Hermanus while my traveller is there?"*
+An event feed for Hermanus, South Africa that collects, normalises, and serves local events so travel agents and AI trip-planning agents can answer: _"What is on in Hermanus while my traveller is there?"_
 
 The system ingests events from a ranked set of sources (SerpAPI for Google Events, Eventbrite, and TripAdvisor; Apify actors for Facebook Events and Quicket; local tourism site scrapers; manual submission), normalises them into a unified temporal model that handles four event shapes (point-in-time, multi-date/running, far-future, seasonal), exposes an agent-friendly REST API, and uses Claude as an ingestion and relevance-scoring agent.
 
@@ -63,15 +63,15 @@ Recurrence
 
 **Why this shape:**
 
-| Event type | Example | How it's stored |
-|---|---|---|
-| Point-in-time | J. Cole concert, 12 Dec 2026 | `type: "point", start_date: "2026-12-12"` |
-| Running/range | Exhibition open Jan–Dec 2027 | `type: "range", start_date: "2027-01-15", end_date: "2027-12-31"` |
-| Multi-date | Theatre show, 81 specific dates | `type: "range", start_date: first, end_date: last, dates: [all 81]` |
-| Recurring | Saturday market, weekly | `type: "recurring", recurrence: { frequency: "weekly", day_of_week: 5 }` |
-| Seasonal | Whale watching, June–November | `type: "seasonal", start_month: 6, end_month: 11` |
+| Event type    | Example                         | How it's stored                                                          |
+| ------------- | ------------------------------- | ------------------------------------------------------------------------ |
+| Point-in-time | J. Cole concert, 12 Dec 2026    | `type: "point", start_date: "2026-12-12"`                                |
+| Running/range | Exhibition open Jan–Dec 2027    | `type: "range", start_date: "2027-01-15", end_date: "2027-12-31"`        |
+| Multi-date    | Theatre show, 81 specific dates | `type: "range", start_date: first, end_date: last, dates: [all 81]`      |
+| Recurring     | Saturday market, weekly         | `type: "recurring", recurrence: { frequency: "weekly", day_of_week: 5 }` |
+| Seasonal      | Whale watching, June–November   | `type: "seasonal", start_month: 6, end_month: 11`                        |
 
-**The key query** is: *"What overlaps with a date range?"* Given a traveller's dates (e.g. 14–21 September 2027), the API must return: the Saturday market (recurring, falls on a Saturday within the range), whale watching (seasonal, September is within June–November), and any point/range events that overlap. This is an `overlaps(travel_start, travel_end)` function that checks each type differently:
+**The key query** is: _"What overlaps with a date range?"_ Given a traveller's dates (e.g. 14–21 September 2027), the API must return: the Saturday market (recurring, falls on a Saturday within the range), whale watching (seasonal, September is within June–November), and any point/range events that overlap. This is an `overlaps(travel_start, travel_end)` function that checks each type differently:
 
 - **point**: `start_date >= travel_start AND start_date <= travel_end`
 - **range**: `start_date <= travel_end AND end_date >= travel_start`
@@ -118,7 +118,7 @@ EventVersion
 └── snapshot       Event           ← full event at this version
 ```
 
-This answers the spec's question: *"How would you go back to see what effect a change had?"* Every ingestion run creates a new version if anything changed. You can diff any two versions to see what the agent changed and whether it improved or degraded the data.
+This answers the spec's question: _"How would you go back to see what effect a change had?"_ Every ingestion run creates a new version if anything changed. You can diff any two versions to see what the agent changed and whether it improved or degraded the data.
 
 ---
 
@@ -170,6 +170,7 @@ GET /api/events?from=2027-09-14&to=2027-09-21&suitable_for=couples,luxury&min_co
 ```
 
 Response:
+
 ```json
 {
   "data": [
@@ -186,7 +187,10 @@ Response:
     {
       "id": "01J5...",
       "title": "Hermanus Country Market",
-      "temporal": { "type": "recurring", "recurrence": { "frequency": "weekly", "day_of_week": 5 } },
+      "temporal": {
+        "type": "recurring",
+        "recurrence": { "frequency": "weekly", "day_of_week": 5 }
+      },
       "categories": ["market", "food-wine"],
       "relevance_score": 0.82,
       "confidence": 0.95,
@@ -211,6 +215,7 @@ Three agents, each with a single job:
 **Job:** Given a source, fetch raw data and produce normalised `Event` objects.
 
 **How it works:**
+
 - Receives raw HTML/JSON from a source (Apify actor response, scraped page)
 - Uses Claude Haiku to extract event data into the `Event` schema
 - Assigns initial `confidence` based on source trust level and extraction clarity
@@ -226,6 +231,7 @@ Three agents, each with a single job:
 **Job:** Score events for relevance given a traveller profile.
 
 **How it works:**
+
 - Called at query time (or pre-computed on a schedule)
 - Takes event metadata + traveller profile (age range, interests, trip type)
 - Returns a `relevance_score` (0–1)
@@ -242,6 +248,7 @@ Three agents, each with a single job:
 **Job:** Periodically verify that stored events are still correct.
 
 **How it works:**
+
 - Runs weekly (or on-demand)
 - For each event approaching its date (within 30 days), re-checks the source
 - Updates status (confirmed → cancelled, date changed, etc.)
@@ -254,19 +261,19 @@ Three agents, each with a single job:
 
 ## Sources — Ranked by Expected Yield
 
-| Priority | Source | Method | Expected yield | Cost |
-|---|---|---|---|---|
-| 1 | Google Events | SerpAPI (`google_events` engine) | Medium-high | Free tier (250 searches/month) |
-| 2 | Facebook Events | Apify actor (Facebook Events Scraper) | Low (rate-limited) | ~$0.003/result |
-| 3 | Quicket | Apify actor (Quicket scraper) | Medium | ~$0.002/result |
-| 4 | Eventbrite | SerpAPI (`eventbrite` engine) | Medium | Free tier (250 searches/month) |
-| 5 | TripAdvisor | SerpAPI (`tripadvisor` engine) | Low-medium (tourist-facing events) | Free tier (250 searches/month) |
-| 6 | hermanus.co.za | Scrape (Haiku 5.5 extracts) | Medium | ~$0.01/run |
-| 7 | ShowMe Hermanus | Scrape (Haiku 5.5 extracts) | Medium | ~$0.01/run |
-| 8 | fynarts.co.za | Scrape (seasonal) | Low (but high-value) | ~$0.003/run |
-| 9 | Whale Festival site | Scrape (seasonal) | Low | ~$0.003/run |
-| 10 | SA-Venues | Scrape | Low-medium | ~$0.005/run |
-| 11 | Manual submission | Form/API | High (over time) | Free |
+| Priority | Source              | Method                                | Expected yield                     | Cost                           |
+| -------- | ------------------- | ------------------------------------- | ---------------------------------- | ------------------------------ |
+| 1        | Google Events       | SerpAPI (`google_events` engine)      | Medium-high                        | Free tier (250 searches/month) |
+| 2        | Facebook Events     | Apify actor (Facebook Events Scraper) | Low (rate-limited)                 | ~$0.003/result                 |
+| 3        | Quicket             | Apify actor (Quicket scraper)         | Medium                             | ~$0.002/result                 |
+| 4        | Eventbrite          | SerpAPI (`eventbrite` engine)         | Medium                             | Free tier (250 searches/month) |
+| 5        | TripAdvisor         | SerpAPI (`tripadvisor` engine)        | Low-medium (tourist-facing events) | Free tier (250 searches/month) |
+| 6        | hermanus.co.za      | Scrape (Haiku 5.5 extracts)           | Medium                             | ~$0.01/run                     |
+| 7        | ShowMe Hermanus     | Scrape (Haiku 5.5 extracts)           | Medium                             | ~$0.01/run                     |
+| 8        | fynarts.co.za       | Scrape (seasonal)                     | Low (but high-value)               | ~$0.003/run                    |
+| 9        | Whale Festival site | Scrape (seasonal)                     | Low                                | ~$0.003/run                    |
+| 10       | SA-Venues           | Scrape                                | Low-medium                         | ~$0.005/run                    |
+| 11       | Manual submission   | Form/API                              | High (over time)                   | Free                           |
 
 **Why this order:** Google Events (via SerpAPI) aggregates what Google already indexes — the broadest net, confirmed reliable for Hermanus with 5-6 results per query. Facebook Events is the dominant event platform in SA, accessible via Apify actor (bypassing Facebook's restricted APIs), though frequently rate-limited. Quicket is South Africa's primary ticketing platform — if an event sells tickets, it's likely on Quicket. Eventbrite (via SerpAPI) covers professionally organised events with structured data including GPS coordinates. TripAdvisor (via SerpAPI) surfaces tourist-facing activities and experiences. Local tourism sites fill the gap for community events. Manual submission is the long-term play for events no scraper can find (church fetes, pop-up dinners, wine farm events announced only via email newsletters). Hybrid strategy: SerpAPI for structured search APIs (Google Events, Eventbrite, TripAdvisor) where it returns reliable Hermanus results; Apify actors for social media scraping (Facebook, Quicket) where SerpAPI has no equivalent.
 
@@ -304,7 +311,7 @@ Three agents, each with a single job:
 
 **Rule:** Every event change creates a versioned snapshot. Sources track their last scrape. Ingestion runs are logged with stats.
 
-**What you accept:** Storage grows linearly with changes. For a small-town feed, this is negligible (<1 GB/year). The audit trail is essential for the spec's question: *"How would you go back to see what effect a change had?"*
+**What you accept:** Storage grows linearly with changes. For a small-town feed, this is negligible (<1 GB/year). The audit trail is essential for the spec's question: _"How would you go back to see what effect a change had?"_
 
 **Trade-off:** A simpler system overwrites events in place. You lose the ability to debug bad ingestion runs, track source quality degradation, or answer "what did the feed look like last month?"
 
@@ -360,13 +367,13 @@ Three agents, each with a single job:
 
 **Expected events (worked by hand):**
 
-| Event | Type | Why it matches | Confidence |
-|---|---|---|---|
-| Whale watching season | seasonal (Jun–Nov) | September is within Jun–Nov | 0.99 |
-| Hermanus Country Market | recurring (Sat) | 20 Sep 2027 is a Saturday | 0.95 |
-| Hermanus Whale Festival | point/range (late Sep, ~27–28 Sep) | Doesn't overlap 14–21 Sep | Should NOT appear |
-| Wine farm dinner at Creation | point (18 Sep 2027, hypothetical) | Falls within range | 0.70 |
-| FynArts Festival | point/range (June 2027) | June ≠ September | Should NOT appear |
+| Event                        | Type                               | Why it matches              | Confidence        |
+| ---------------------------- | ---------------------------------- | --------------------------- | ----------------- |
+| Whale watching season        | seasonal (Jun–Nov)                 | September is within Jun–Nov | 0.99              |
+| Hermanus Country Market      | recurring (Sat)                    | 20 Sep 2027 is a Saturday   | 0.95              |
+| Hermanus Whale Festival      | point/range (late Sep, ~27–28 Sep) | Doesn't overlap 14–21 Sep   | Should NOT appear |
+| Wine farm dinner at Creation | point (18 Sep 2027, hypothetical)  | Falls within range          | 0.70              |
+| FynArts Festival             | point/range (June 2027)            | June ≠ September            | Should NOT appear |
 
 **Verification:** The whale festival is the tricky one. If the festival is 27–28 Sep, it falls outside the 14–21 range and should NOT be returned. This tests whether the overlap logic is correct (`start_date <= travel_end AND end_date >= travel_start` → `2027-09-27 <= 2027-09-21` is false → correctly excluded).
 
@@ -376,12 +383,12 @@ Three agents, each with a single job:
 
 **Expected events:**
 
-| Event | Type | Why |
-|---|---|---|
-| Whale watching season | seasonal (Jun–Nov) | June is within range |
-| FynArts Festival | range (mid-June, ~5 days) | Falls within June |
-| Hermanus Country Market | recurring (Sat) | 4 Saturdays in June |
-| Fernkloof wildflower walk | recurring? seasonal? | Depends on data — Sept is peak, June may be early |
+| Event                     | Type                      | Why                                               |
+| ------------------------- | ------------------------- | ------------------------------------------------- |
+| Whale watching season     | seasonal (Jun–Nov)        | June is within range                              |
+| FynArts Festival          | range (mid-June, ~5 days) | Falls within June                                 |
+| Hermanus Country Market   | recurring (Sat)           | 4 Saturdays in June                               |
+| Fernkloof wildflower walk | recurring? seasonal?      | Depends on data — Sept is peak, June may be early |
 
 **Verification:** `next_occurrence_in_range` for the market should return "2027-06-07" (first Saturday). FynArts dates should be specific if the programme is published, or approximate if not.
 
@@ -401,18 +408,18 @@ Three agents, each with a single job:
 
 ## Execution Plan
 
-| Step | What | Risk | Impact | Depends on |
-|---|---|---|---|---|
-| 1 | Data model + DB schema (PostgreSQL) | Low | High | Nothing |
-| 2 | API endpoints (Next.js API routes) | Low | High | Step 1 |
-| 3 | Ingest agents — SerpAPI (Google Events, Eventbrite, TripAdvisor) + Apify (Facebook) | Medium (API response formats) | High (primary data sources) | Step 1, 2 |
-| 4 | Overlap query logic (the core algorithm) | Medium (recurrence math) | Critical | Step 1 |
-| 5 | Quicket (Apify) integration | Low (Apify actor API) | Medium | Step 1, 2 |
-| 6 | One scraper (hermanus.co.za) with Claude extraction | Medium (site structure) | Medium | Step 1, 2 |
-| 7 | Deduplication logic | Medium (fuzzy matching edge cases) | High | Step 3, 5, 6 |
-| 8 | Review agent (re-verification) | Low | Medium | Step 1, 2 |
-| 9 | Manual submission endpoint | Low | Medium (long-term value) | Step 2 |
-| 10 | Relevance scoring | Low | Medium | Step 2 |
+| Step | What                                                                                | Risk                               | Impact                      | Depends on   |
+| ---- | ----------------------------------------------------------------------------------- | ---------------------------------- | --------------------------- | ------------ |
+| 1    | Data model + DB schema (PostgreSQL)                                                 | Low                                | High                        | Nothing      |
+| 2    | API endpoints (Next.js API routes)                                                  | Low                                | High                        | Step 1       |
+| 3    | Ingest agents — SerpAPI (Google Events, Eventbrite, TripAdvisor) + Apify (Facebook) | Medium (API response formats)      | High (primary data sources) | Step 1, 2    |
+| 4    | Overlap query logic (the core algorithm)                                            | Medium (recurrence math)           | Critical                    | Step 1       |
+| 5    | Quicket (Apify) integration                                                         | Low (Apify actor API)              | Medium                      | Step 1, 2    |
+| 6    | One scraper (hermanus.co.za) with Claude extraction                                 | Medium (site structure)            | Medium                      | Step 1, 2    |
+| 7    | Deduplication logic                                                                 | Medium (fuzzy matching edge cases) | High                        | Step 3, 5, 6 |
+| 8    | Review agent (re-verification)                                                      | Low                                | Medium                      | Step 1, 2    |
+| 9    | Manual submission endpoint                                                          | Low                                | Medium (long-term value)    | Step 2       |
+| 10   | Relevance scoring                                                                   | Low                                | Medium                      | Step 2       |
 
 **Critical path:** Steps 1 → 2 → 3 → 4. Everything else can run in parallel after step 2.
 
@@ -422,26 +429,45 @@ Three agents, each with a single job:
 
 ## Tech Stack
 
-| Layer | Choice | Why |
-|---|---|---|
-| Framework | Next.js 16 (App Router) | Stable LTS. API routes + potential UI in one project. |
-| Language | TypeScript | Type safety on the event model. Four temporal types need compile-time checks. |
-| Database | PostgreSQL (Neon free tier) | Concurrent agents, JSON columns, full-text search. 1 GB free. |
-| ORM | Drizzle | Lightweight, type-safe, SQL-first. No magic. |
-| AI (extraction) | Claude Haiku 5.5 | Cheapest model that reliably extracts structured data from messy HTML. $0.10/M input, $0.50/M output. |
-| AI (relevance) | Claude Haiku 5.5 | Only for edge cases. Most relevance is rule-based. |
-| Event sources | SerpAPI (Google Events, Eventbrite, TripAdvisor) + Apify actors (Facebook Events, Quicket) + fetch + Claude for scraping | Hybrid approach: SerpAPI for reliable structured search APIs, Apify for social media scraping. |
-| Scheduling | Vercel Cron (or simple setInterval in dev) | Trigger daily/weekly ingestion and review runs. |
-| Validation | Zod | Runtime schema validation on all ingest data. |
-| Deployment | Vercel ([live](https://events-feed-hermanus.vercel.app)) | Zero-config Next.js deployment. Free tier sufficient. |
+**What the spec required:** Data model design, API design, agents working through those APIs (Claude/Codex consuming the API for data processing), and pen-and-paper notes.
 
-**Why not FastAPI/Python:** Next.js API routes handle this well, keep everything in one repo and one language. If the ingestion pipeline needed heavy ML processing or complex data pipelines, Python would be warranted. For structured API + Claude calls + DB operations, TypeScript is simpler.
+**What was delivered:** All of the above, plus a full frontend (events feed, detail pages, admin panel with health overview and E2E test runner). The frontend was not required but serves two purposes: (1) makes the system tangible and verifiable end-to-end without curl commands, (2) demonstrates that the API is production-ready by consuming it from a real UI. The frontend adds zero backend complexity — no new endpoints, no new schemas, just a thin client on the existing API. I do enjoy seeing the data come to life on a UI, beyond fetching the JSON info to interact with on an external platform.
+
+| Layer           | Choice                                                                                                                   | Why                                                                                                   |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
+| Framework       | Next.js 16 (App Router)                                                                                                  | Stable LTS. API routes + potential UI in one project.                                                 |
+| Language        | TypeScript                                                                                                               | Type safety on the event model. Four temporal types need compile-time checks.                         |
+| Database        | PostgreSQL (Neon free tier)                                                                                              | Concurrent agents, JSON columns, full-text search. 1 GB free.                                         |
+| ORM             | Drizzle                                                                                                                  | Lightweight, type-safe, SQL-first. No magic.                                                          |
+| AI (extraction) | Claude Haiku 5.5                                                                                                         | Cheapest model that reliably extracts structured data from messy HTML. $0.10/M input, $0.50/M output. |
+| AI (relevance)  | Claude Haiku 5.5                                                                                                         | Only for edge cases. Most relevance is rule-based.                                                    |
+| Event sources   | SerpAPI (Google Events, Eventbrite, TripAdvisor) + Apify actors (Facebook Events, Quicket) + fetch + Claude for scraping | Hybrid approach: SerpAPI for reliable structured search APIs, Apify for social media scraping.        |
+| Scheduling      | Vercel Cron (or simple setInterval in dev)                                                                               | Trigger daily/weekly ingestion and review runs.                                                       |
+| Validation      | Zod                                                                                                                      | Runtime schema validation on all ingest data.                                                         |
+| Deployment      | Vercel ([live](https://events-feed-hermanus.vercel.app))                                                                 | Zero-config Next.js deployment. Free tier sufficient.                                                 |
+
+**Why Next.js API routes instead of a separate backend (like FastAPI):**
+
+Next.js with API routes collapses three sources of friction for a v1 build:
+
+1. **Shared types** — `src/types/event.ts` defines `Event`, `Temporal`, and all API request/response shapes. The API route handlers and the React components import the same declarations. A backend change that breaks the frontend fails at compile time in the same commit, not in production later. With a separate backend, you either duplicate schemas or generate types from OpenAPI specs.
+
+2. **Single deployment** — One Vercel deploy. Serverless functions for API routes, edge-optimized static pages for the UI. No CORS by default (same origin). A separate backend means two deploy pipelines, two domain/CORS configurations, two sets of environment variables.
+
+3. **Instant verification** — Change an API endpoint, refresh the browser, see the result. No separate frontend rebuild, no docker-compose orchestration, no context-switching between repos.
+
+This approach is [well-established for full-stack prototyping](https://mtdeveloper.vercel.app/blog/streamlining-full-stack-development-monorepo-nextjs-nodejs): unified ecosystem, atomic commits (backend + frontend changes land together), instantaneous type inference across the stack.
+
+**Why not Python/FastAPI:** The event feed doesn't need AI model inference at request time (Claude Haiku extraction happens during ingestion, asynchronously), no heavy data processing (dedup is O(n×m) on ~100 events), and no long-running background jobs (ingestion is fire-and-forget serverless functions with 10min timeout). Python's strengths — ML libraries, data science tooling, persistent compute for heavy tasks — aren't required here. The system is CRUD + scheduled batch jobs + Claude API calls, all of which TypeScript handles well. If the system later needed real-time embedding generation, multi-hour document processing, or integration with PyTorch/Pandas pipelines, FastAPI would become the right choice. For v1, Next.js was the simpler path.
+
+**Stack alignment:** This stack was chosen to align with [Magic Safari's tech stack](https://magicsafari.com/handbook/our-tech-stack/): "TypeScript and Python for almost everything... built on Next.js, FastAPI, React, Sanity CMS, and TailwindCSS." This project uses TypeScript, Next.js, React, and TailwindCSS. The choice between Next.js API routes and FastAPI came down to workload requirements: FastAPI is the right tool for ML-heavy processing (PyTorch, LangChain, Pandas), but this system is CRUD + scheduled batch jobs + Claude API calls, which TypeScript handles well. Sanity CMS is not needed (no CMS content in an event feed). The "simple over clever" principle from the handbook guided every decision: boring technology (PostgreSQL, Drizzle, Zod), no premature optimization (no GraphQL, no microservices), and picking the tool that ships value fastest. The monorepo is a v1 pragmatic choice — if this scaled to production with heavy ML workloads, separating concerns (Next.js for the frontend and user-facing API, FastAPI for Python-heavy processing) would align with Magic Safari's architecture.
 
 ---
 
 ## Cost Estimate
 
 ### Build phase
+
 - Claude Opus/Sonnet (via Claude Code): included in Claude Max subscription — $0 marginal
 - SerpAPI (Google Events, Eventbrite): free tier (250 searches/month) — $0
 - Apify actors (Facebook, Quicket): free tier ($5/month platform credits) — $0
@@ -449,29 +475,32 @@ Three agents, each with a single job:
 - Vercel: free tier — $0
 
 ### Weekly production run (v1 — Hermanus only)
-| Item | Volume | Cost |
-|---|---|---|
-| SerpAPI (Google Events + Eventbrite) | ~14 searches/week (~60/month, within 250/month free tier) | $0/week |
-| Apify actors (Facebook, Quicket) | ~100 results/week (~400/month, within $5/month free credits) | $0/week |
-| Claude Haiku 5.5 (ingestion) | ~50 pages, ~100K tokens total | ~$0.02/week |
-| Claude Haiku 5.5 (review) | ~30 events, ~60K tokens | ~$0.01/week |
-| Claude Haiku 5.5 (relevance) | ~10 queries, ~20K tokens | ~$0.005/week |
-| Database (Neon) | <100 MB | $0/week (1 GB free tier) |
-| Vercel hosting | Hobby tier | $0/week |
-| **Total weekly** | | **~$0.04/week** |
-| **Monthly estimate** | | **~$0.15/month** |
+
+| Item                                 | Volume                                                       | Cost                     |
+| ------------------------------------ | ------------------------------------------------------------ | ------------------------ |
+| SerpAPI (Google Events + Eventbrite) | ~14 searches/week (~60/month, within 250/month free tier)    | $0/week                  |
+| Apify actors (Facebook, Quicket)     | ~100 results/week (~400/month, within $5/month free credits) | $0/week                  |
+| Claude Haiku 5.5 (ingestion)         | ~50 pages, ~100K tokens total                                | ~$0.02/week              |
+| Claude Haiku 5.5 (review)            | ~30 events, ~60K tokens                                      | ~$0.01/week              |
+| Claude Haiku 5.5 (relevance)         | ~10 queries, ~20K tokens                                     | ~$0.005/week             |
+| Database (Neon)                      | <100 MB                                                      | $0/week (1 GB free tier) |
+| Vercel hosting                       | Hobby tier                                                   | $0/week                  |
+| **Total weekly**                     |                                                              | **~$0.04/week**          |
+| **Monthly estimate**                 |                                                              | **~$0.15/month**         |
 
 ### Scaling cost projection
-| Destinations | Apify results/month | Apify/month | Haiku 5.5/month | Total/month |
-|---|---|---|---|---|
-| 1 (Hermanus) | ~800 (within $5 free credits) | $0 | $0.15 | **$0.15** |
-| 10 | ~8K (~$2/1K avg across actors) | $16 | $1.50 | **$18** |
-| 50 | ~40K | $80 | $7.50 | **$88** |
-| 100 | ~80K | $160 | $15 | **$175** |
+
+| Destinations | Apify results/month            | Apify/month | Haiku 5.5/month | Total/month |
+| ------------ | ------------------------------ | ----------- | --------------- | ----------- |
+| 1 (Hermanus) | ~800 (within $5 free credits)  | $0          | $0.15           | **$0.15**   |
+| 10           | ~8K (~$2/1K avg across actors) | $16         | $1.50           | **$18**     |
+| 50           | ~40K                           | $80         | $7.50           | **$88**     |
+| 100          | ~80K                           | $160        | $15             | **$175**    |
 
 SerpAPI and Apify are the dominant costs at scale — SerpAPI for Google Events, Eventbrite, and TripAdvisor search queries, Apify for Facebook and Quicket scraping. Both offer pay-per-use pricing with no plan tiers to jump between. Two API keys (SerpAPI + Apify) cover all five source adapters. Claude Haiku 5.5 at $0.10/M input tokens is negligible for structured extraction workloads.
 
 ### Model choices rationale
+
 - **Haiku 5.5 for extraction/review:** $0.10/M input, $0.50/M output. 90% cheaper than Haiku 4.5. Structured extraction from HTML doesn't need reasoning — Haiku handles it at a fraction of a cent per page.
 - **Opus 4.6 for design and code generation:** Used interactively during design and build via Claude Code (Claude Max subscription). Never in production — cost would be prohibitive for batch extraction.
 - **Sonnet:** Not used. Haiku handles extraction, Opus handles design. No middle ground required for this workload.
