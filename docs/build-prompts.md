@@ -6,7 +6,7 @@ Each prompt references DESIGN.md and CLAUDE.md so Claude works from the plan, no
 
 ---
 
-> **Historical note (Nov 2026):** The original build prompts below reference SerpAPI as the Google Events data source and `SERPAPI_KEY` as an env var. After the initial build, SerpAPI was replaced with Apify actors for all event sources. The current source IDs are: `google-events` (Apify actor: `johnvc/google-events-api---access-google-events-data`), `facebook` (`apify/facebook-events-scraper`), `eventbrite` (`parseforge/eventbrite-scraper`), `tripadvisor` (`maxcopell/tripadvisor`), `quicket` (`gtnetworks/sa-events-listings`), `hermanus-co-za`, and `manual`. Only `APIFY_API_KEY` is needed -- `SERPAPI_KEY` has been removed. The prompts are preserved as-is for build history.
+> **Historical note (Nov 2026):** The original build prompts below reference SerpAPI as the sole Google Events data source. The final architecture uses a hybrid approach: SerpAPI for Google Events and Eventbrite (reliable structured results for Hermanus), and Apify actors for Facebook, TripAdvisor, and Quicket (social/scraper sources). Both `SERPAPI_API_KEY` and `APIFY_API_KEY` are required. Current source IDs: `google-events` (SerpAPI), `eventbrite` (SerpAPI), `facebook` (`apify/facebook-events-scraper`), `tripadvisor` (`maxcopell/tripadvisor`), `quicket` (`gtnetworks/sa-events-listings`), `hermanus-co-za`, and `manual`. The prompts are preserved as-is for build history.
 
 ## Phase 1: Project Setup
 
@@ -19,7 +19,7 @@ Read CLAUDE.md and DESIGN.md in this project. Then:
 
 1. Initialise a Next.js 16 project with App Router and TypeScript in this directory.
 2. Install dependencies: drizzle-orm, drizzle-kit, @neondatabase/serverless, zod, ulid, anthropic.
-3. Create .env.example with these keys: DATABASE_URL, ANTHROPIC_API_KEY, SERPAPI_KEY, APIFY_API_KEY.
+3. Create .env.example with these keys: DATABASE_URL, ANTHROPIC_API_KEY, SERPAPI_API_KEY, APIFY_API_KEY.
 4. Create drizzle.config.ts pointing at DATABASE_URL.
 5. Set up the tsconfig.json path alias @/ → src/.
 6. Create the directory structure from CLAUDE.md's project structure section.
@@ -325,6 +325,7 @@ Implement GET /api/health that returns:
 6. Phase 6 (polish) — OpenAPI spec, health check
 
 **Tracer bullet checkpoints:**
+
 - After Phase 2: temporal tests all pass
 - After Phase 3: API returns correct results for hand-worked case queries using seed data
 - After Phase 4: first real SerpAPI ingest produces valid events with correct temporal types

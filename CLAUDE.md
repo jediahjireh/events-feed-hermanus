@@ -66,6 +66,7 @@ Use the following skills from `.claude/skills/`:
 - `/project:implement` — Build features, fixes, and enhancements from briefs
 - `/project:verify` — Audit implementation for correctness and rule compliance
 - `/project:commit-plan` — Group changes into logical commits with messages
+- `/project:pr` — Create a PR with structured description and security checklist
 - `/project:log-fix` — Record fixes to the knowledge base, or search past fixes
 - `/project:security-check` — OWASP Top 10 security audit
 
@@ -77,7 +78,7 @@ Use the following skills from `.claude/skills/`:
 **Deployment:**
 - `/project:deploy` — Staging → production deployment workflow
 
-Workflow: fill `tasks/feature-brief.md` → implement → verify → commit-plan. After debugging: log-fix → check lessons.md.
+Workflow: fill `tasks/feature-brief.md` → implement → verify → commit-plan → pr. After debugging: log-fix → check lessons.md.
 
 ## Code Comments
 
@@ -125,7 +126,7 @@ Every event has a `temporal` field with a `type` discriminator: `"point"`, `"ran
 
 ## Security & Secrets
 
-- API keys (Apify, Anthropic) go in `.env.local`, never committed. Apify covers all event sources (Google Events, Facebook, Eventbrite, TripAdvisor, Quicket).
+- API keys (SerpAPI, Apify, Anthropic) go in `.env.local`, never committed. SerpAPI covers Google Events + Eventbrite; Apify covers Facebook, TripAdvisor, Quicket.
 - `.env.example` documents required keys with placeholder values.
 - If you spot a key in source code, remove it immediately.
 - Input validation at API boundary. Parameterised queries via Drizzle ORM. Never concatenate user input into SQL.
@@ -154,7 +155,7 @@ Every event has a `temporal` field with a `type` discriminator: `"point"`, `"ran
 | ORM | Drizzle |
 | AI (extraction) | Claude Haiku 5.5 |
 | Validation | Zod |
-| Event sources | Apify actors (Google Events, Facebook, Eventbrite, TripAdvisor, Quicket), fetch + Claude |
+| Event sources | SerpAPI (Google Events, Eventbrite) + Apify actors (Facebook, TripAdvisor, Quicket) + fetch + Claude |
 | Deployment | Vercel ([live](https://events-feed-hermanus.vercel.app)) |
 
 ## Project Structure
@@ -210,12 +211,13 @@ events-feed-hermanus/
 │   │   ├── dedup.ts             # Fuzzy deduplication
 │   │   ├── relevance.ts         # Relevance scoring
 │   │   └── sources/
+│   │       ├── serpapi.ts          # Shared SerpAPI client and utilities
 │   │       ├── apify.ts           # Shared Apify client and utilities
-│   │       ├── google-events.ts   # Google Events actor adapter (johnvc/google-events-api---access-google-events-data)
-│   │       ├── facebook.ts        # Facebook Events actor adapter (apify/facebook-events-scraper)
-│   │       ├── eventbrite.ts      # Eventbrite actor adapter (parseforge/eventbrite-scraper)
-│   │       ├── tripadvisor.ts     # TripAdvisor actor adapter (maxcopell/tripadvisor)
-│   │       ├── quicket.ts         # Quicket actor adapter (Apify scraper)
+│   │       ├── google-events.ts   # Google Events adapter (SerpAPI google_events engine)
+│   │       ├── facebook.ts        # Facebook Events adapter (Apify apify/facebook-events-scraper)
+│   │       ├── eventbrite.ts      # Eventbrite adapter (SerpAPI eventbrite engine)
+│   │       ├── tripadvisor.ts     # TripAdvisor adapter (Apify maxcopell/tripadvisor)
+│   │       ├── quicket.ts         # Quicket adapter (Apify scraper)
 │   │       ├── scraper.ts         # Generic Claude-powered scraper
 │   │       └── manual.ts          # Manual submission handler
 │   ├── agents/
@@ -247,7 +249,7 @@ pnpm install
 
 # Set up env
 cp .env.example .env.local
-# Fill in: DATABASE_URL, ANTHROPIC_API_KEY, APIFY_API_KEY
+# Fill in: DATABASE_URL, ANTHROPIC_API_KEY, SERPAPI_API_KEY, APIFY_API_KEY
 
 # DB setup
 pnpm drizzle-kit push

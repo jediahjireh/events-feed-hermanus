@@ -46,25 +46,31 @@ Research gathered during the design phase. Sources verified against live web whe
 
 ## Hermanus Event Sources
 
-All Apify-based sources use a single `APIFY_API_KEY`. SerpAPI was replaced with Apify actors in Nov 2026.
+Hybrid source strategy: SerpAPI for Google Events and Eventbrite (structured search APIs, reliable Hermanus results), Apify actors for Facebook, TripAdvisor, and Quicket (social media scraping / platforms without search APIs).
 
-| Source | Source ID | URL / Actor | Method | Expected yield |
+| Source | Source ID | URL / API | Method | Expected yield |
 |---|---|---|---|---|
-| Google Events (Apify) | `google-events` | [johnvc/google-events-api---access-google-events-data](https://apify.com/johnvc/google-events-api---access-google-events-data) | Apify actor | Medium-high |
-| Facebook Events (Apify) | `facebook` | [apify/facebook-events-scraper](https://apify.com/apify/facebook-events-scraper) | Apify actor | Medium |
-| Eventbrite (Apify) | `eventbrite` | [parseforge/eventbrite-scraper](https://apify.com/parseforge/eventbrite-scraper) | Apify actor | Medium |
+| Google Events (SerpAPI) | `google-events` | [serpapi.com/google-events-api](https://serpapi.com/google-events-api) | SerpAPI `google_events` engine | Medium-high |
+| Facebook Events (Apify) | `facebook` | [apify/facebook-events-scraper](https://apify.com/apify/facebook-events-scraper) | Apify actor (rate-limited) | Low (unreliable) |
+| Eventbrite (SerpAPI) | `eventbrite` | [serpapi.com/eventbrite-search-api](https://serpapi.com/eventbrite-search-api) | SerpAPI `eventbrite` engine | Medium |
 | TripAdvisor (Apify) | `tripadvisor` | [maxcopell/tripadvisor](https://apify.com/maxcopell/tripadvisor) | Apify actor | Low-medium |
-| Quicket (Apify) | `quicket` | [apify.com/gtnetworks/sa-events-listings](https://apify.com/gtnetworks/sa-events-listings/api) | Apify actor | Medium |
+| Quicket (Apify) | `quicket` | [gtnetworks/sa-events-listings](https://apify.com/gtnetworks/sa-events-listings/api) | Apify actor | Medium |
 | hermanus.co.za | `hermanus-co-za` | hermanus.co.za | Scrape + Claude | Medium |
 | Manual Submission | `manual` | — | Manual entry | Low but high-quality |
+
+### SerpAPI Engine References
+
+| Engine | URL | Notes |
+|---|---|---|
+| Google Events | [serpapi.com/google-events-api](https://serpapi.com/google-events-api) | Query: "Events in Hermanus". Returns structured event data with dates, venues, tickets. |
+| Eventbrite | [serpapi.com/eventbrite-search-api](https://serpapi.com/eventbrite-search-api) | Location: "Hermanus, Western Cape, South Africa". GPS bounding box filter applied client-side. |
+| Meta Ad Library | [serpapi.com/meta-ad-library-api](https://serpapi.com/meta-ad-library-api) | Returns Facebook/Instagram/Messenger ads mentioning "hermanus" (435 results Nov 2026). Mostly business promotions, not events — low signal-to-noise for event extraction. Some ads contain event-like data (tour dates, seasonal activities). Potential future supplementary source if Facebook Events adapter remains unreliable. |
 
 ### Apify Actor References
 
 | Actor | URL | Notes |
 |---|---|---|
-| Google Events | [apify.com/johnvc/google-events-api---access-google-events-data](https://apify.com/johnvc/google-events-api---access-google-events-data) | Replaces SerpAPI Google Events API. Outputs structured event data. |
-| Facebook Events Scraper | [apify.com/apify/facebook-events-scraper](https://apify.com/apify/facebook-events-scraper) | Official Apify actor. Scrapes public Facebook event pages. |
-| Eventbrite Scraper | [apify.com/parseforge/eventbrite-scraper](https://apify.com/parseforge/eventbrite-scraper) | Scrapes Eventbrite listings by location. |
+| Facebook Events Scraper | [apify.com/apify/facebook-events-scraper](https://apify.com/apify/facebook-events-scraper) | Official Apify actor. Frequently rate-limited by Facebook (Nov 2026). |
 | TripAdvisor | [apify.com/maxcopell/tripadvisor](https://apify.com/maxcopell/tripadvisor) | Scrapes TripAdvisor attractions/events. |
 | SA Events Listings (Quicket) | [apify.com/gtnetworks/sa-events-listings](https://apify.com/gtnetworks/sa-events-listings/api) | Scrapes Quicket SA event listings. |
 

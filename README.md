@@ -46,11 +46,11 @@ Next.js 16 (App Router) · TypeScript · Drizzle ORM · Neon PostgreSQL · Zod �
 ```bash
 pnpm install
 cp .env.example .env.local
-# Fill in: DATABASE_URL, ANTHROPIC_API_KEY, APIFY_API_KEY
+# Fill in: DATABASE_URL, ANTHROPIC_API_KEY, SERPAPI_API_KEY, APIFY_API_KEY
 pnpm drizzle-kit push
 pnpm tsx src/db/seed.ts
 pnpm dev
 pnpm test
 ```
 
-For a full testing walkthrough (curl commands, hand-worked cases, and a copy-paste prompt for Claude/Codex), see [docs/testing-guide.md](docs/testing-guide.md).
+For a full testing walkthrough (curl commands, hand-worked cases, and a copy-paste prompt for Claude/Codex), see [docs/testing-guide.md](docs/testing-guide.md). For a quick 19-check E2E test you can paste into any Claude session, see [docs/quick-test-prompt.md](docs/quick-test-prompt.md).
