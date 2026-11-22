@@ -50,6 +50,15 @@ function EventsFeed() {
     setFilter("page", String(newPage));
   }
 
+  /** Replace all filters at once (for presets). Empty object = clear all. */
+  function setBatchFilters(newFilters: Record<string, string>) {
+    const params = new URLSearchParams();
+    for (const [key, val] of Object.entries(newFilters)) {
+      if (val) params.set(key, val);
+    }
+    router.push(params.size > 0 ? `/?${params.toString()}` : "/");
+  }
+
   const filters: Record<string, string> = {};
   for (const key of ["from", "to", "categories", "suitable_for", "source_id", "sort"]) {
     const val = searchParams.get(key);
@@ -71,7 +80,7 @@ function EventsFeed() {
         </p>
       </div>
 
-      <FilterBar filters={filters} onChange={setFilter} />
+      <FilterBar filters={filters} onChange={setFilter} onBatchChange={setBatchFilters} />
 
       {isLoading ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

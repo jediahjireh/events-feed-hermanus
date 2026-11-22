@@ -20,12 +20,39 @@ const SORT_OPTIONS = [
   { value: "confidence", label: "Confidence" },
 ];
 
+/** Preset filter scenarios from DESIGN.md hand-worked cases */
+const PRESETS = [
+  {
+    label: "Case 1: Luxury Couple Trip",
+    description: "Sep 14–21 2027 · couples + luxury → 3 events expected",
+    filters: { from: "2027-09-14", to: "2027-09-21", suitable_for: "couples,luxury" },
+  },
+  {
+    label: "Case 2: Family June",
+    description: "Full June 2027 · families → 2 events expected",
+    filters: { from: "2027-06-01", to: "2027-06-30", suitable_for: "families" },
+  },
+  {
+    label: "Whale Season",
+    description: "Jun–Nov 2027 · wildlife → seasonal + festivals",
+    filters: { from: "2027-06-01", to: "2027-11-30", categories: "wildlife" },
+  },
+  {
+    label: "Full Year",
+    description: "All 2027 events, no filters",
+    filters: { from: "2027-01-01", to: "2027-12-31" },
+  },
+] as const;
+
 export function FilterBar({
   filters,
   onChange,
+  onBatchChange,
 }: {
   filters: Record<string, string>;
   onChange: (key: string, value: string) => void;
+  /** Set multiple filter values at once (for presets) */
+  onBatchChange?: (filters: Record<string, string>) => void;
 }) {
   const { data: sources = [] } = useSources();
 
@@ -115,8 +142,12 @@ export function FilterBar({
               size="sm"
               icon={X}
               onClick={() => {
-                for (const key of Object.keys(filters)) {
-                  onChange(key, "");
+                if (onBatchChange) {
+                  onBatchChange({});
+                } else {
+                  for (const key of Object.keys(filters)) {
+                    onChange(key, "");
+                  }
                 }
               }}
             >
@@ -124,6 +155,30 @@ export function FilterBar({
             </Button>
           )}
         </div>
+
+        {/* Presets */}
+        {onBatchChange && (
+          <div>
+            <span className="text-xs font-semibold uppercase tracking-wide text-deep-forest/50">
+              Quick presets
+            </span>
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              {PRESETS.map((preset) => (
+                <button
+                  key={preset.label}
+                  onClick={() => onBatchChange(preset.filters)}
+                  title={preset.description}
+                  className={cn(
+                    "rounded-md border px-2.5 py-1 text-xs font-medium transition-colors",
+                    "border-vibrant-leaf/30 bg-fresh-mint/40 text-deep-forest hover:bg-fresh-mint",
+                  )}
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Categories */}
         <div>
