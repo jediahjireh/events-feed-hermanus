@@ -1,9 +1,2 @@
 {
-  "_comment": "Cron disabled to preserve API credit usage unnecessarily. Re-enable by uncommenting the crons array below.",
-  "_crons_disabled": [
-    {
-      "path": "/api/cron",
-      "schedule": "0 6 * * *"
-    }
-  ]
 }
