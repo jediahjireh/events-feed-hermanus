@@ -315,6 +315,74 @@ Implement GET /api/health that returns:
 
 ---
 
+## Phase 7: Ask API Agent (Post-Build Addition)
+
+### Context
+
+After completing the core system, I realized the homework spec's phrase "agents working through those APIs" could be demonstrated more tangibly. The ingest/review/relevance agents extract and process data, but what about an agent that *consumes* the API — the way a travel planner AI would?
+
+I've built internal chat systems before. I'm accustomed to spinning up these internal tools quickly, and it clicked that this would show the "other side" of the agent workflow: not just data extraction/ingestion, but API consumption through natural language.
+
+### Prompt 7.1 — Ask API Chat Agent
+
+```
+Build a conversational agent that queries the events API using Claude function calling. This demonstrates an agent consuming the API (the homework spec's "agents working through those APIs").
+
+Create:
+
+1. Database schema (src/db/schema.ts):
+   - chat_threads table: id, title, messages (jsonb), cost_usd, tokens_input, tokens_output, created_at, updated_at
+   - chat_monthly_spend table: month_key, total_usd, query_count, updated_at
+   - No auth fields (admin panel has no auth)
+
+2. API routes:
+   - POST /api/chat — Main agent endpoint with Claude Haiku 5.5 function calling
+     - Tools: query_events, get_event_detail, get_health
+     - Automatic monthly spend tracking
+   - GET/POST/PUT/DELETE /api/chat/threads — Thread CRUD
+   - GET /api/chat/spend/:month — Monthly cost tracking
+
+3. Client service (src/lib/chat-service.ts):
+   - Thread management (fetch, create, save, delete)
+   - askAPI() for sending questions
+   - Cost estimation helper
+
+4. Chat UI (src/components/admin/ask-api-chat.tsx):
+   - Thread sidebar, markdown messages, follow-up suggestions
+   - 6 preset prompts from reviewer guide:
+     - "What's on September 14-21 for a luxury couple?"
+     - "Show me whale watching events"
+     - "What events have confidence below 0.6?"
+     - "What's the data freshness? When was each source last ingested?"
+     - "Show me all seasonal events"
+     - "What's available for families with kids in December?"
+   - Monthly spend display
+   - Thread persistence with 5-second polling
+   - Mobile-responsive layout
+
+5. Chat route:
+   - Create /chat route (src/app/chat/page.tsx)
+   - Add navigation to navbar with MessageSquare icon
+
+6. Documentation:
+   - README.md: Add Ask API bullet under "Live API" table
+   - docs/reviewer-guide.md: New "Ask API (Conversational Agent)" section
+   - DESIGN.md: Add as 4th agent in "Agent Architecture"
+
+Install dependencies: date-fns, react-markdown, remark-gfm
+
+The agent should:
+- Use Claude Haiku 5.5 with function calling tools
+- Execute tools against internal API endpoints (fetch to /api/events, /api/events/:id, /api/health)
+- Format results as conversational markdown responses
+- Track costs (~$0.0001 per query)
+- Save threads to database with full history
+
+This demonstrates the homework requirement of "agents working through those APIs" — Claude consuming the events API without manual filter construction.
+```
+
+---
+
 ## Running Order
 
 1. Phase 1 (scaffold + schema) — do this first, verify DB connection
@@ -323,6 +391,7 @@ Implement GET /api/health that returns:
 4. Phase 4 (agents) — wire up real sources, run first ingest
 5. Phase 5 (seed + tests) — verify hand-worked cases pass
 6. Phase 6 (polish) — OpenAPI spec, health check
+7. Phase 7 (Ask API) — conversational agent that queries the API (post-build addition)
 
 **Tracer bullet checkpoints:**
 
@@ -330,3 +399,4 @@ Implement GET /api/health that returns:
 - After Phase 3: API returns correct results for hand-worked case queries using seed data
 - After Phase 4: first real SerpAPI ingest produces valid events with correct temporal types
 - After Phase 5: all hand-worked case tests pass end-to-end
+- After Phase 7: Ask API agent can answer preset prompts via function calling

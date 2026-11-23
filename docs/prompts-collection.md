@@ -354,6 +354,7 @@ Run /project:verify on the full codebase.
 ```
 
 **What it produced:** 20 findings:
+
 - 3 must-fix: security vulnerability (unbounded LLM output in DB writes), stale date in serverless (module-level Date()), non-JSON crash in api-client
 - 8 should-fix: dead code (unused imports), cost calculation errors, full table scan in dedup, accessibility gaps (modal has no Escape/ARIA)
 - 3 doc fixes: stale historical notes, wrong field names in testing guide
@@ -397,6 +398,47 @@ _Updating tracking docs, prompts collection, and talking points to reflect the f
 > Status: done
 > Executed: 2026-11-22
 > Notes: Updated tracking/time.md (full commit timeline + active time analysis), tracking/cost.md (frontend session), docs/prompts-collection.md (Phases 6-8), docs/talking-points.md (frontend + verification evidence).
+
+---
+
+## Phase 9: Ask API Agent (Post-Build Addition)
+
+_After completing the core system and frontend, I went back to the homework spec: "Agents working through those APIs. Get a normal Claude or Codex to use the API and do the data processing." I'd built agents that extract and ingest data — the production side. But what about an agent that_ consumes _the API, the way a travel planner AI would? The other side of the workflow. That's when the full funnel came together._
+
+_I've constructed custom internal chat systems before for day-to-day usage (similar patterns in other projects I've worked on). I'm accustomed to quickly spinning up these internal tools — they're incredibly handy once working. When I realized the spec could demonstrate both sides (agents \_processing_ data and agents _querying_ data), it felt like the missing piece. Not just data extraction/ingestion on the backend, but API consumption through natural language.\_
+
+_I personally enjoy building internal systems as far as possible; having a conversational layer over data I've just ingested feels like the only natural progression once the puzzle pieces join._
+
+### 9.1 — Ask API chat agent build
+
+```text
+Build a conversational agent that queries the events API using Claude function calling.
+
+Create:
+1. Database schema: chat_threads and chat_monthly_spend tables (no auth fields)
+2. API routes: POST /api/chat (function calling), thread CRUD, monthly spend tracking
+3. Client service: thread management, askAPI(), cost estimation
+4. Chat UI: 6 preset prompts, markdown messages, follow-up suggestions, "Dig deeper:" extraction
+5. Chat route: /chat with dedicated layout, navbar link with MessageSquare icon
+6. Docs: README, reviewer-guide, DESIGN
+
+Tools for Claude: query_events, get_event_detail, get_health
+
+6 preset prompts:
+- "What's on September 14-21 for a luxury couple?"
+- "Show me whale watching events"
+- "What events have confidence below 0.6?"
+- "What's the data freshness? When was each source last ingested?"
+- "Show me all seasonal events"
+- "What's available for families with kids in December?"
+
+Dependencies: date-fns, react-markdown, remark-gfm
+```
+
+> Status: done
+> Executed: 2026-11-23
+> Notes: Built in ~90 min. Full conversational agent with function calling. 3 new API routes (/api/chat, /api/chat/threads, /api/chat/spend/:month). Thread persistence with 5-second polling. Markdown rendering with react-markdown + remark-gfm. "Dig deeper:" follow-up extraction from AI responses as clickable buttons. Monthly cost tracking (~$0.0001/query, Haiku 5.5). Mobile-responsive layout with collapsible sidebar. No auth (admin panel has no auth). Added /chat route with MessageSquare nav icon. Updated README.md (Ask API bullet under Live API table), reviewer-guide.md (new "Ask API (Conversational Agent)" section with 6 preset prompts), DESIGN.md (4th agent in "Agent Architecture" section with personal notes about the journey and lightbulb moment). Demonstrates the homework requirement of "agents working through those APIs" — Claude consuming the events API via function calling without manual filter construction. **Personal motivation: Internal tools are my comfort zone. Seeing the data come alive through conversation felt like closing the loop — the natural next step after the core system was solid.**
+> Tracer bullet: Ask API can answer "What's on September 14-21 for a luxury couple?" by calling query_events with correct filters (from, to, suitable_for). All 6 preset prompts work via function calling.
 
 ---
 

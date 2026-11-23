@@ -208,7 +208,7 @@ Note `next_occurrence_in_range` — for recurring events, the API pre-computes t
 
 ## Agent Architecture
 
-Three agents, each with a single job:
+Four agents, each with a single job:
 
 ### 1. Ingest Agent
 
@@ -256,6 +256,25 @@ Three agents, each with a single job:
 - Logs all changes to `EventVersion`
 
 **Tracer bullet:** Outputs a `review_report` with: events checked, events confirmed, events updated, events marked stale (source gone). If >20% of events are stale, the source's `trust_level` is lowered.
+
+### 4. Ask API Agent
+
+**Job:** Answer natural language questions about events by querying the API with appropriate filters.
+
+**How it works:**
+
+- User asks a question in conversational English (_"What's on September 14-21 for a luxury couple?"_)
+- Claude Haiku 5.5 receives the question with function calling tools: `query_events`, `get_event_detail`, `get_health`
+- Claude decides which tools to call, executes them against `/api/events` and related endpoints, and synthesises the results into a natural response
+- Threads (conversation history) are saved to the database with message history, token usage, and cost tracking
+
+**Why this agent:** After building the core system, I went back to the homework spec's phrase: _"Agents working through those APIs. Get a normal Claude or Codex to use the API and do the data processing."_ I'd built the extraction/ingestion/review agents — the production side — but what about an agent that _consumes_ the API, the way a travel planner AI would? The other side of the workflow. That's when the full funnel clicked into place.
+
+I've built custom internal chat systems before for day-to-day usage and I'm accustomed to quickly spinning up these internal tools. When I realized the spec could demonstrate both sides (agents _extracting_ data and agents _consuming_ data), it felt like the missing piece. Not just data extraction/ingestion on the backend, but API consumption through natural language.
+
+The agent also serves as a practical tool for reviewers — explore the data without curl commands — and proves the API is agent-friendly (Claude can self-discover and use it). I personally enjoy building internal systems as far as possible; having a conversational layer over data I've just ingested feels like the only natural progression once the puzzle pieces come together.
+
+**Location:** [`/chat`](https://events-feed-hermanus.vercel.app/chat)
 
 ---
 
@@ -431,7 +450,7 @@ Three agents, each with a single job:
 
 **What the spec required:** Data model design, API design, agents working through those APIs (Claude/Codex consuming the API for data processing), and pen-and-paper notes.
 
-**What was delivered:** All of the above, plus a full frontend (events feed, detail pages, admin panel with health overview and E2E test runner). The frontend was not required but serves two purposes: (1) makes the system tangible and verifiable end-to-end without curl commands, (2) demonstrates that the API is production-ready by consuming it from a real UI. The frontend adds zero backend complexity — no new endpoints, no new schemas, just a thin client on the existing API. I do enjoy seeing the data come to life on a UI, beyond fetching the JSON info to interact with on an external platform.
+**What was delivered:** All of the above, plus a full frontend (events feed, detail pages, Ask API conversational agent, admin panel with health overview and E2E test runner) and a 4th agent (Ask API) that demonstrates the "consuming" side of "agents working through those APIs" — Claude queries the events API via function calling based on natural language questions. The frontend was not required but serves two purposes: (1) makes the system tangible and verifiable end-to-end without curl commands, (2) demonstrates that the API is production-ready by consuming it from a real UI and a conversational agent. The frontend adds minimal backend complexity — the chat endpoints are isolated from the core event system. I do enjoy seeing the data come to life on a UI and actively interacted with within internal systems, beyond fetching the JSON info to interact with on an external platform.
 
 | Layer           | Choice                                                                                                                   | Why                                                                                                   |
 | --------------- | ------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |

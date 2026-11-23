@@ -192,12 +192,13 @@ events-feed-hermanus/
 │   └── cost.md                  # Cost tracking (models, API calls)
 ├── docs/
 │   ├── pen-and-paper/           # Photos of handwritten notes
-│   ├── build-prompts.md         # Build prompts (12 sequential, execute in order)
+│   ├── build-prompts.md         # Build prompts (7 phases, execute in order)
 │   ├── prompts-collection.md    # Full prompt chain + build progress log
 │   └── references.md            # Web research references
 ├── src/
 │   ├── app/api/
 │   │   ├── events/              # Event CRUD endpoints
+│   │   ├── chat/                # Ask API — conversational agent (function calling)
 │   │   ├── sources/             # Source management
 │   │   ├── ingest/              # Trigger ingestion runs
 │   │   ├── health/              # Health check
@@ -210,6 +211,7 @@ events-feed-hermanus/
 │   │   ├── temporal.ts          # Overlap query logic (critical — most tests here)
 │   │   ├── dedup.ts             # Fuzzy deduplication
 │   │   ├── relevance.ts         # Relevance scoring
+│   │   ├── chat-service.ts      # Ask API client-side thread management
 │   │   └── sources/
 │   │       ├── serpapi.ts          # Shared SerpAPI client and utilities
 │   │       ├── apify.ts           # Shared Apify client and utilities

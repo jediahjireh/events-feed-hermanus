@@ -1,6 +1,6 @@
 # Time Tracking
 
-Target: 1–2 hours personal time (per spec). Actual: ~2h 50min across three sessions — went beyond scope to build frontend, admin panel, E2E test runner, and a full verification/fix cycle. The design + backend (the core deliverable) was ~1h 55min.
+Target: 1–2 hours personal time (per spec). Actual: ~3h across four sessions — went beyond scope to build frontend, admin panel, E2E test runner, Ask API conversational agent, and a full verification/fix cycle. The design + backend (the core deliverable) was ~1h 55min.
 
 ## Commit Timeline
 
@@ -55,8 +55,11 @@ The 00:25–00:33 batch (9 commits in 8 min) was code built in the prior session
 | Harden                                 | Production data quality fixes: markPastEvents, extraction prompts, dedup merge, version records                | 5 min         | Phase 10 — directed fixes, verified with 184/184 tests             |
 | Final audit                            | Numbers audit across all docs, /verify full codebase, reconcile figures                                        | 5 min         | Caught 11 stale numbers, 3 SHOULD-FIX code items                   |
 |                                        | **Session 3 subtotal**                                                                                         | **~55min**    |                                                                     |
+| **Session 4: Ask API Agent**           |                                                                                                                |               |                                                                     |
+| Build                                  | Ask API chat agent — conversational query interface via Claude function calling                                 | ~10 min       | <5min directing Claude, ~3min iterations/docs/reasoning             |
+|                                        | **Session 4 subtotal**                                                                                         | **~10min**    |                                                                     |
 |                                        |                                                                                                                |               |                                                                     |
-|                                        | **Grand total**                                                                                                | **~2h 50min** |                                                                     |
+|                                        | **Grand total**                                                                                                | **~3h**       |                                                                     |
 
 ## Where the time went
 
@@ -70,6 +73,8 @@ The 00:25–00:33 batch (9 commits in 8 min) was code built in the prior session
 2. The admin panel (ingest/review triggers, E2E test runner) proves the system works end-to-end
 3. The /verify audit caught a real security issue (unbounded LLM output in DB writes) — worth the extra time
 
+**Session 4 — Ask API agent: ~10min** — After completing the core system, I went back to the homework spec and realized it could demonstrate both sides of "agents working through those APIs": agents _extracting_ data (ingest/review) and agents _consuming_ data (Ask API). Built a conversational query interface where Claude uses function calling to query `/api/events` based on natural language questions. Thread persistence, cost tracking, 6 preset prompts from reviewer guide, mobile UI. <5min directing Claude (mirrored patterns from previous internal chat systems), ~3min for iterations and doc updates (README, DESIGN, reviewer-guide, build-prompts, prompts-collection).
+
 **The verification cycle is the key differentiator.** Running /verify → reviewing 20 findings → fixing 14 issues → re-verifying → confirming 184/184 tests pass. This is the opposite of "run Claude and ship" — it's iterative quality engineering with human judgement at every decision point.
 
 ## What "active time" means
@@ -79,4 +84,4 @@ The 00:25–00:33 batch (9 commits in 8 min) was code built in the prior session
 - **Verification**: running tests, reviewing audit findings, confirming fixes don't regress
 - **NOT active**: waiting for Claude to generate code, waiting for builds to run, waiting for test suites
 
-The 2h 50min is engagement time — reading, thinking, deciding, verifying: any manual input.
+The 3h is engagement time — reading, thinking, deciding, verifying: any manual input.
