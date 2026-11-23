@@ -104,7 +104,7 @@ export const ingestRuns = pgTable(
       .defaultNow(),
     completed_at: timestamp("completed_at", { withTimezone: true }),
     status: text("status", {
-      enum: ["running", "completed", "failed"],
+      enum: ["running", "completed", "failed", "cancelled"],
     })
       .notNull()
       .default("running"),

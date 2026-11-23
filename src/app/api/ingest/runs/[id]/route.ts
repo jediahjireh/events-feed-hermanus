@@ -6,7 +6,7 @@ import { apiSuccess, apiError } from "@/types/api";
 
 /**
  * PATCH /api/ingest/runs/:id — cancel a stuck "running" ingest run.
- * Sets status to "failed" with an error message indicating manual cancellation.
+ * Sets status to "cancelled" with an error message indicating manual cancellation.
  */
 export async function PATCH(
   _request: NextRequest,
@@ -43,7 +43,7 @@ export async function PATCH(
     const [updated] = await db
       .update(ingestRuns)
       .set({
-        status: "failed",
+        status: "cancelled",
         completed_at: new Date(),
         error: "Manually cancelled by user",
       })

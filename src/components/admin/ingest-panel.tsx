@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Play, XCircle } from "lucide-react";
+import { Play, XCircle, RotateCw } from "lucide-react";
 import { useSources } from "@/hooks/use-sources";
 import { useIngestRuns, useTriggerIngest, useCancelRun } from "@/hooks/use-ingest";
 import { Card, CardContent } from "@/components/ui/card";
@@ -38,6 +38,13 @@ export function IngestPanel() {
 
   const inputClass =
     "mt-1 block w-full rounded-md border border-soft-sage bg-white px-3 py-1.5 text-sm shadow-sm focus:border-vibrant-leaf focus:outline-none focus:ring-1 focus:ring-vibrant-leaf";
+
+  // Detect stuck runs (>10 minutes, likely Vercel timeout)
+  const isStuck = (run: typeof runs[number]) => {
+    if (run.status !== "running") return false;
+    const elapsed = Date.now() - new Date(run.started_at).getTime();
+    return elapsed > 10 * 60 * 1000; // 10 minutes
+  };
 
   if (loadingSources) {
     return (
@@ -123,7 +130,35 @@ export function IngestPanel() {
                     <td className="py-2.5 pr-4 tabular-nums">{run.events_updated}</td>
                     <td className="py-2.5 pr-4 max-w-xs truncate text-xs text-red-600">{run.error_message}</td>
                     <td className="py-2.5">
-                      {run.status === "running" && (
+                      {run.status === "running" && isStuck(run) ? (
+                        <div className="flex gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            icon={XCircle}
+                            className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                            onClick={() => cancelRun.mutate(run.id)}
+                            disabled={cancelRun.isPending}
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            icon={RotateCw}
+                            className="text-vibrant-leaf hover:text-vibrant-leaf/80 hover:bg-whisper-green"
+                            onClick={() => {
+                              // Cancel the stuck run, then trigger new one
+                              cancelRun.mutate(run.id, {
+                                onSuccess: () => triggerIngest.mutate(run.source_id),
+                              });
+                            }}
+                            disabled={cancelRun.isPending || triggerIngest.isPending}
+                          >
+                            Re-trigger
+                          </Button>
+                        </div>
+                      ) : run.status === "running" ? (
                         <Button
                           variant="ghost"
                           size="sm"
@@ -134,7 +169,18 @@ export function IngestPanel() {
                         >
                           Cancel
                         </Button>
-                      )}
+                      ) : (run.status === "failed" || run.status === "cancelled") ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          icon={RotateCw}
+                          className="text-vibrant-leaf hover:text-vibrant-leaf/80 hover:bg-whisper-green"
+                          onClick={() => triggerIngest.mutate(run.source_id)}
+                          disabled={triggerIngest.isPending}
+                        >
+                          Retry
+                        </Button>
+                      ) : null}
                     </td>
                   </tr>
                 ))}
