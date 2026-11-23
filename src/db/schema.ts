@@ -120,6 +120,38 @@ export const ingestRuns = pgTable(
   (table) => [index("ingest_runs_source_id_idx").on(table.source_id)]
 );
 
+// --- Chat Threads (Ask API conversations) ---
+
+export const chatThreads = pgTable(
+  "chat_threads",
+  {
+    id: text("id").primaryKey(), // ULID
+    title: text("title").notNull(),
+    messages: jsonb("messages").notNull().$type<ChatMessage[]>().default([]),
+    cost_usd: real("cost_usd").notNull().default(0),
+    tokens_input: integer("tokens_input").notNull().default(0),
+    tokens_output: integer("tokens_output").notNull().default(0),
+    created_at: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updated_at: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [index("chat_threads_updated_at_idx").on(table.updated_at)]
+);
+
+// --- Chat Monthly Spend ---
+
+export const chatMonthlySpend = pgTable("chat_monthly_spend", {
+  month_key: text("month_key").primaryKey(), // "YYYY-MM"
+  total_usd: real("total_usd").notNull().default(0),
+  query_count: integer("query_count").notNull().default(0),
+  updated_at: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
 // --- JSON column type definitions ---
 // These mirror the Zod schemas in src/types/event.ts
 
@@ -184,4 +216,18 @@ export type LinksJson = {
   website?: string;
   tickets?: string;
   source_url?: string;
+};
+
+export type ChatMessage = {
+  role: "user" | "assistant";
+  content: string;
+  tool_calls?: Array<{
+    tool: string;
+    input: unknown;
+    result: unknown;
+  }>;
+  usage?: {
+    input_tokens: number;
+    output_tokens: number;
+  };
 };

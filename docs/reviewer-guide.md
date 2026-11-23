@@ -27,6 +27,7 @@ An event feed for Hermanus, South Africa. Collects events from 7 sources, normal
 - **Versions** every change with full snapshot + diff audit trail
 - **Serves** 13 REST endpoints with filtering by date range, categories, traveller profile, confidence, and status
 - **Frontend** with natural language date picker ("winter", "whale season", "next friday"), filter presets, event detail with version history, and admin panel with live E2E test runner
+- **Ask API** — conversational agent at [`/chat`](https://events-feed-hermanus.vercel.app/chat) where Claude queries the events API via function calling, demonstrating agent-driven API consumption
 
 ## Architecture
 
@@ -38,8 +39,8 @@ Sources (7)  →  Ingest Agent  →  Claude Haiku 5.5 extraction  →  Zod valid
                                                               PostgreSQL (Neon)
                                                                         ↓
                                                               REST API (13 endpoints)
-                                                                        ↓
-Review Agent (re-verify)  ←─────────────────────────── Relevance Agent (score)
+                                                                   ↓          ↓
+Review Agent (re-verify)  ←── Relevance Agent (score)    Ask API Agent (query)
 ```
 
 ## Tech Stack
@@ -61,7 +62,7 @@ Review Agent (re-verify)  ←─────────────────
 |---|---|
 | API endpoints | 13 |
 | Tests | 184 (134 backend + 50 season-dates) |
-| Frontend pages | 3 (feed, detail, admin) |
+| Frontend pages | 4 (feed, detail, Ask API chat, admin) |
 | Event sources | 7 |
 | Temporal types | 4 (point, range, recurring, seasonal) |
 | Production lessons | 23 (in `tasks/lessons.md`) |
@@ -124,6 +125,25 @@ For systematic endpoint-by-endpoint testing, use the structured test prompts in 
 
 The E2E runner executes all HTTP methods (GET, POST, PUT, DELETE) from the browser and reports PASS/FAIL with actual values. This covers everything the Claude prompts above cannot test (write operations, exact HTTP status codes, version conflicts).
 
+### Ask API (Conversational Agent)
+
+**Ask API** is a conversational agent that queries the events API using Claude function calling. This demonstrates an agent consuming the API through natural language queries.
+
+**To try it:**
+
+1. Go to [events-feed-hermanus.vercel.app/chat](https://events-feed-hermanus.vercel.app/chat)
+2. Try any of the preset prompts or ask your own question:
+   - _"What's on September 14-21 for a luxury couple?"_
+   - _"Show me whale watching events"_
+   - _"What events have confidence below 0.6?"_
+   - _"What's the data freshness? When was each source last ingested?"_
+   - _"Show me all seasonal events"_
+   - _"What's available for families with kids in December?"_
+
+**How it works:** The agent calls Claude Haiku 5.5 with function calling tools — `query_events` (search with filters), `get_event_detail` (fetch by ID), and `get_health` (system status). Claude decides which tools to call based on your natural language question, executes them against the API, and formats the results as a conversational response.
+
+Threads are saved to the database with full message history, token usage, and cost tracking (~$0.0001 per query).
+
 ---
 
 ## Key Links
@@ -131,6 +151,7 @@ The E2E runner executes all HTTP methods (GET, POST, PUT, DELETE) from the brows
 | Resource | URL |
 |---|---|
 | Live site | [events-feed-hermanus.vercel.app](https://events-feed-hermanus.vercel.app) |
+| Ask API (chat) | [events-feed-hermanus.vercel.app/chat](https://events-feed-hermanus.vercel.app/chat) |
 | Admin panel | [events-feed-hermanus.vercel.app/admin](https://events-feed-hermanus.vercel.app/admin) |
 | API health | [events-feed-hermanus.vercel.app/api/health](https://events-feed-hermanus.vercel.app/api/health) |
 | OpenAPI spec | [events-feed-hermanus.vercel.app/api/schema](https://events-feed-hermanus.vercel.app/api/schema) |

@@ -1,11 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { BarChart3, Download, Eye, TestTube } from "lucide-react";
+import Link from "next/link";
+import { BarChart3, Download, Eye, TestTube, MessageSquare } from "lucide-react";
 import { HealthOverview } from "@/components/admin/health-overview";
 import { IngestPanel } from "@/components/admin/ingest-panel";
 import { ReviewPanel } from "@/components/admin/review-panel";
 import { E2ETestRunner } from "@/components/admin/e2e-test-runner";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const TABS = [
@@ -22,7 +24,15 @@ export default function AdminPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold">Admin Panel</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold">Admin Panel</h1>
+        <Link href="/chat">
+          <Button variant="outline" className="gap-2">
+            <MessageSquare className="h-4 w-4" />
+            Ask API
+          </Button>
+        </Link>
+      </div>
 
       <div className="flex gap-1 rounded-lg border bg-white p-1">
         {TABS.map((t) => {
@@ -35,7 +45,7 @@ export default function AdminPage() {
                 "flex items-center gap-1.5 rounded-md px-4 py-2 text-sm font-medium transition-colors",
                 tab === t.id
                   ? "bg-vibrant-leaf text-white shadow-sm"
-                  : "text-deep-forest/60 hover:bg-whisper-green hover:text-deep-forest",
+                  : "text-deep-forest/60 hover:bg-whisper-green hover:text-deep-forest"
               )}
             >
               <Icon className="h-4 w-4" />

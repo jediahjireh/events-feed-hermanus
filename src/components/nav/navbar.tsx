@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Calendar, Settings, FileJson } from "lucide-react";
+import { Calendar, MessageSquare, Settings, FileJson } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
   { href: "/", label: "Events", icon: Calendar },
+  { href: "/chat", label: "Ask API", icon: MessageSquare },
   { href: "/admin", label: "Admin", icon: Settings },
 ];
 
